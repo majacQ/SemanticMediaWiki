@@ -1,6 +1,10 @@
 {
 	"@metadata": {
-		"authors": []
+		"authors": [
+			"Kolonahe"
+		]
 	},
-	"smw-livepreview-loading": "Ke ho‘ouka nei…"
+	"smw-categories": "Nā Māhele",
+	"smw-livepreview-loading": "Ke ho‘ouka nei…",
+	"smw-listingcontinuesabbrev": "(homaʻia)"
 }

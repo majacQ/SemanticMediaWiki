@@ -3,6 +3,7 @@
 namespace SMW\Services;
 
 use Onoi\CallbackContainer\ContainerBuilder;
+use RequestContext;
 use SMW\DataValueFactory;
 use SMW\DataValues\InfoLinksProvider;
 use SMW\DataValues\StringValue;
@@ -23,7 +24,7 @@ use SMWTimeValue as TimeValue;
  * This class provides service and factory functions for DataValue objects and
  * are only to be used for those objects.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.5
  *
  * @author mwjames
@@ -101,7 +102,6 @@ class DataValueServiceFactory {
 	 * @return DataValue
 	 */
 	public function newDataValueByTypeOrClass( $typeId, $class ) {
-
 		if ( is_callable( $class ) ) {
 			return $class( $typeId );
 		}
@@ -132,7 +132,6 @@ class DataValueServiceFactory {
 	 * @return ValueFormatter
 	 */
 	public function getValueFormatter( DataValue $dataValue ) {
-
 		$id = self::TYPE_FORMATTER . $dataValue->getTypeID();
 
 		if ( $this->containerBuilder->isRegistered( $id ) ) {
@@ -181,16 +180,11 @@ class DataValueServiceFactory {
 	 * @return PropertyRestrictionExaminer
 	 */
 	public function getPropertyRestrictionExaminer() {
-
 		$propertyRestrictionExaminer = $this->containerBuilder->singleton( 'PropertyRestrictionExaminer' );
-
-		$propertyRestrictionExaminer->setUser(
-			$GLOBALS['wgUser']
-		);
+		$propertyRestrictionExaminer->setUser( RequestContext::getMain()->getUser() );
 
 		return $propertyRestrictionExaminer;
 	}
-
 
 	/**
 	 * @since 3.1
@@ -202,7 +196,6 @@ class DataValueServiceFactory {
 	}
 
 	private function getDispatchableValueFormatter( $dataValue ) {
-
 		if ( $this->dispatchingDataValueFormatter === null ) {
 			$this->dispatchingDataValueFormatter = $this->newDispatchingDataValueFormatter();
 		}
@@ -211,7 +204,6 @@ class DataValueServiceFactory {
 	}
 
 	private function newDispatchingDataValueFormatter() {
-
 		$dispatchingDataValueFormatter = new DispatchingDataValueFormatter();
 
 		// To be checked only after DispatchingDataValueFormatter::addDataValueFormatter did

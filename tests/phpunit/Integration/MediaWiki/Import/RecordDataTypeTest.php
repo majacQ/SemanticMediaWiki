@@ -4,7 +4,7 @@ namespace SMW\Tests\Integration\MediaWiki\Import;
 
 use SMW\DIProperty;
 use SMW\DIWikiPage;
-use SMW\Tests\MwDBaseUnitTestCase;
+use SMW\Tests\SMWIntegrationTestCase;
 use SMW\Tests\Utils\ByPageSemanticDataFinder;
 use SMW\Tests\Utils\UtilityFactory;
 use Title;
@@ -17,21 +17,19 @@ use Title;
  * @group Database
  * @group medium
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9.1
  *
  * @author mwjames
  */
-class RecordDataTypeTest extends MwDBaseUnitTestCase {
-
-	protected $destroyDatabaseTablesAfterRun = true;
+class RecordDataTypeTest extends SMWIntegrationTestCase {
 
 	private $importedTitles = [];
 	private $runnerFactory;
 	private $titleValidator;
 	private $semanticDataValidator;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		$this->runnerFactory  = UtilityFactory::getInstance()->newRunnerFactory();
@@ -39,7 +37,7 @@ class RecordDataTypeTest extends MwDBaseUnitTestCase {
 		$this->semanticDataValidator = UtilityFactory::getInstance()->newValidatorFactory()->newSemanticDataValidator();
 
 		$importRunner = $this->runnerFactory->newXmlImportRunner(
-			__DIR__ . '/'. 'Fixtures/' . 'RecordDataTypeTest-Mw-1-19-7.xml'
+			__DIR__ . '/' . 'Fixtures/' . 'RecordDataTypeTest-Mw-1-19-7.xml'
 		);
 
 		if ( !$importRunner->setVerbose( true )->run() ) {
@@ -48,8 +46,7 @@ class RecordDataTypeTest extends MwDBaseUnitTestCase {
 		}
 	}
 
-	protected function tearDown() : void {
-
+	protected function tearDown(): void {
 		$pageDeleter = UtilityFactory::getInstance()->newPageDeleter();
 		$pageDeleter->doDeletePoolOfPages( $this->importedTitles );
 
@@ -57,7 +54,6 @@ class RecordDataTypeTest extends MwDBaseUnitTestCase {
 	}
 
 	public function testImportOfRecordValues() {
-
 		$this->importedTitles = [
 			'Property:Has record number field',
 			'Property:Has record page field',
@@ -76,9 +72,9 @@ class RecordDataTypeTest extends MwDBaseUnitTestCase {
 		$expectedCategoryAsWikiValue = [
 			'property' => new DIProperty( '_INST' ),
 			'propertyValues' => [
-				'Regression test',
-				'Data type regression test',
-				'Record type regression test'
+				'Category:Regression test',
+				'Category:Data type regression test',
+				'Category:Record type regression test'
 			]
 		];
 
@@ -178,7 +174,6 @@ class RecordDataTypeTest extends MwDBaseUnitTestCase {
 	}
 
 	protected function assertThatSemanticDataValuesAreSet( $expected, $semanticData ) {
-
 		$runValueAssert = false;
 
 		foreach ( $semanticData->getProperties() as $property ) {
@@ -199,7 +194,6 @@ class RecordDataTypeTest extends MwDBaseUnitTestCase {
 	}
 
 	protected function assertThatRecordValuesAreSet( $expected ) {
-
 		$runValueAssert = false;
 		$values = [];
 

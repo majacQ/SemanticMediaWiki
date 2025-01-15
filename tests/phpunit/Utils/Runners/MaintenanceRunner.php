@@ -4,9 +4,9 @@ namespace SMW\Tests\Utils\Runners;
 
 use DomainException;
 use Onoi\MessageReporter\MessageReporterAwareTrait;
-use SMW\MediaWiki\HookDispatcherAwareTrait;
 use RuntimeException;
-use SMW\ApplicationFactory;
+use SMW\MediaWiki\HookDispatcherAwareTrait;
+use SMW\Services\ServicesFactory as ApplicationFactory;
 
 /**
  * Running maintenance scripts via phpunit is not really possible but instead
@@ -16,7 +16,7 @@ use SMW\ApplicationFactory;
  * @group SMW
  * @group SMWExtension
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9.2
  *
  * @author mwjames
@@ -67,12 +67,11 @@ class MaintenanceRunner {
 	/**
 	 * @since 1.9.2
 	 *
-	 * @return boolean
+	 * @return bool
 	 * @throws RuntimeException
 	 * @throws DomainException
 	 */
 	public function run() {
-
 		if ( !class_exists( $this->maintenanceClass ) ) {
 			throw new RuntimeException( "Expected a valid {$this->maintenanceClass} class" );
 		}

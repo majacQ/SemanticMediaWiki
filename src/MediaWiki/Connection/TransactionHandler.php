@@ -3,9 +3,12 @@
 namespace SMW\MediaWiki\Connection;
 
 use RuntimeException;
+use Wikimedia\Rdbms\ILBFactory;
+use Wikimedia\Rdbms\TransactionProfiler;
+use Wikimedia\ScopedCallback;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.1
  *
  * @author mwjames
@@ -13,7 +16,7 @@ use RuntimeException;
 class TransactionHandler {
 
 	/**
-	 * @var LBFactory
+	 * @var ILBFactory
 	 */
 	private $loadBalancerFactory;
 
@@ -23,23 +26,16 @@ class TransactionHandler {
 	private $sectionTransaction;
 
 	/**
-	 * @var boolean|null
+	 * @var bool|null
 	 */
 	private $mutedTransactionProfiler;
 
+	private TransactionProfiler $transactionProfiler;
+
 	/**
 	 * @since 3.1
-	 *
-	 * @param ILBFactory|LBFactory $loadBalancerFactory
 	 */
-	public function __construct( $loadBalancerFactory ) {
-
-		if (
-			!$loadBalancerFactory instanceof \LBFactory &&
-			!$loadBalancerFactory instanceof \Wikimedia\Rdbms\ILBFactory ) {
-			throw new RuntimeException( "Expected a LBFactory instance!" );
-		}
-
+	public function __construct( ILBFactory $loadBalancerFactory ) {
 		$this->loadBalancerFactory = $loadBalancerFactory;
 	}
 
@@ -49,11 +45,7 @@ class TransactionHandler {
 	 * @param TransactionProfiler $transactionProfiler
 	 */
 	public function setTransactionProfiler( $transactionProfiler ) {
-
-		// MW 1.28+
-		if ( method_exists( $transactionProfiler, 'setSilenced' ) ) {
-			$this->transactionProfiler = $transactionProfiler;
-		}
+		$this->transactionProfiler = $transactionProfiler;
 	}
 
 	/**
@@ -67,18 +59,12 @@ class TransactionHandler {
 	 *
 	 * @since 3.1
 	 */
-	public function muteTransactionProfiler( $mute ) {
-
+	public function muteTransactionProfiler(): ?ScopedCallback {
 		if ( $this->transactionProfiler === null ) {
-			return;
+			return null;
 		}
 
-		if ( $this->mutedTransactionProfiler === null && $mute !== false ) {
-			$this->mutedTransactionProfiler = $this->transactionProfiler->setSilenced( $mute );
-		} elseif ( $this->mutedTransactionProfiler !== null && $mute === false ) {
-			$this->transactionProfiler->setSilenced( $this->mutedTransactionProfiler );
-			$this->mutedTransactionProfiler = null;
-		}
+		return $this->transactionProfiler->silenceForScope();
 	}
 
 	/**
@@ -86,7 +72,7 @@ class TransactionHandler {
 	 *
 	 * @param string $fname
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function inSectionTransaction( $fname = __METHOD__ ) {
 		return $this->sectionTransaction === $fname;
@@ -95,7 +81,7 @@ class TransactionHandler {
 	/**
 	 * @since 3.1
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasActiveSectionTransaction() {
 		return $this->sectionTransaction !== null;
@@ -120,7 +106,6 @@ class TransactionHandler {
 	 * @throws RuntimeException
 	 */
 	public function markSectionTransaction( $fname = __METHOD__ ) {
-
 		if ( $this->sectionTransaction !== null ) {
 			throw new RuntimeException(
 				"Trying to begin a new section transaction while {$this->sectionTransaction} is still active!"
@@ -136,7 +121,6 @@ class TransactionHandler {
 	 * @param string $fname
 	 */
 	public function detachSectionTransaction( $fname = __METHOD__ ) {
-
 		if ( $this->sectionTransaction !== $fname ) {
 			throw new RuntimeException(
 				"Trying to end an invalid section transaction (registered: {$this->sectionTransaction}, requested: {$fname})"
@@ -156,17 +140,13 @@ class TransactionHandler {
 	 * @return mixed A value to pass to commitAndWaitForReplication
 	 */
 	public function getEmptyTransactionTicket( $fname = __METHOD__ ) {
-
 		$ticket = null;
-
-		if ( !method_exists( $this->loadBalancerFactory, 'getEmptyTransactionTicket' ) ) {
-			return $ticket;
-		}
 
 		// @see LBFactory::getEmptyTransactionTicket
 		// We don't try very hard at this point and will continue without a ticket
 		// if the check fails and hereby avoid a "... does not have outer scope" error
-		if ( !$this->loadBalancerFactory->hasMasterChanges() ) {
+
+		if ( !$this->primaryDbHasChanges() ) {
 			$ticket = $this->loadBalancerFactory->getEmptyTransactionTicket( $fname );
 		}
 
@@ -187,12 +167,14 @@ class TransactionHandler {
 	 * @param array $opts Options to waitForReplication
 	 */
 	public function commitAndWaitForReplication( $fname, $ticket, array $opts = [] ) {
-
-		if ( !is_int( $ticket ) || !method_exists( $this->loadBalancerFactory, 'commitAndWaitForReplication' ) ) {
+		if ( !is_int( $ticket ) ) {
 			return;
 		}
 
 		return $this->loadBalancerFactory->commitAndWaitForReplication( $fname, $ticket, $opts );
 	}
 
+	private function primaryDbHasChanges(): bool {
+		return $this->loadBalancerFactory->hasPrimaryChanges();
+	}
 }

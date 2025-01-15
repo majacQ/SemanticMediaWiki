@@ -5,13 +5,14 @@ namespace SMW\Tests\Utils;
 use SMW\DIWikiPage;
 use SMW\Tests\TestEnvironment;
 use Title;
+use User;
 use WikiPage;
 
 /**
  * @group SMW
  * @group SMWExtension
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9.1
  */
 class PageDeleter {
@@ -35,8 +36,9 @@ class PageDeleter {
 		$page = new WikiPage( $title );
 
 		try {
-			$page->doDeleteArticle( 'SMW system test: delete page' );
-		} catch( \Exception $e ) {
+			$user = User::newSystemUser( 'Maintenance script', [ 'steal' => true ] );
+			$page->doDeleteArticleReal( 'SMW system test: delete page', $user );
+		} catch ( \Exception $e ) {
 			//
 		}
 
@@ -49,7 +51,6 @@ class PageDeleter {
 	 * @param array $poolOfPages
 	 */
 	public function doDeletePoolOfPages( array $poolOfPages ) {
-
 		foreach ( $poolOfPages as $page ) {
 
 			if ( $page instanceof WikiPage || $page instanceof DIWikiPage ) {

@@ -2,10 +2,12 @@
 
 namespace SMW;
 
+use MediaWiki\MediaWikiServices;
 use SiteStats;
+use WikiMap;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.0
  *
  * @author mwjames
@@ -17,15 +19,14 @@ class Site {
 	 *
 	 * @since 3.0
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public static function isReadOnly() {
-
 		// MediaWiki\Services\ServiceDisabledException from line 340 of
 		// ...\ServiceContainer.php: Service disabled: DBLoadBalancer
 		try {
-			$isReadOnly = wfReadOnly();
-		} catch( \MediaWiki\Services\ServiceDisabledException $e ) {
+			$isReadOnly = MediaWikiServices::getInstance()->getReadOnlyMode()->isReadOnly();
+		} catch ( \MediaWiki\Services\ServiceDisabledException $e ) {
 			$isReadOnly = true;
 		}
 
@@ -35,10 +36,9 @@ class Site {
 	/**
 	 * @since 3.2
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public static function isReady() {
-
 		// #3341
 		// When running as part of the install don't try to access the DB
 		// or update the Store
@@ -93,22 +93,16 @@ class Site {
 	/**
 	 * @since 3.0
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public static function isCommandLineMode() {
-
-		// MW 1.27 wgCommandLineMode isn't set correctly
-		if ( ( PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg' ) ) {
-			return true;
-		}
-
-		return $GLOBALS['wgCommandLineMode'];
+		return MW_ENTRY_POINT === 'cli' || defined( 'MEDIAWIKI_JOB_RUNNER' );
 	}
 
 	/**
 	 * @since 3.0
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public static function isCapitalLinks() {
 		return $GLOBALS['wgCapitalLinks'];
@@ -120,7 +114,6 @@ class Site {
 	 * @return int
 	 */
 	public static function getCacheExpireTime( $key ) {
-
 		if ( $key === 'parser' ) {
 			return $GLOBALS['wgParserCacheExpireTime'];
 		}
@@ -135,19 +128,18 @@ class Site {
 	 *
 	 * @return string
 	 */
-	public static function id( string $affix = '' ) : string {
-
+	public static function id( string $affix = '' ): string {
 		if ( $affix !== '' && $affix[0] !== ':' ) {
 			$affix = ':' . $affix;
 		}
 
-		return wfWikiID() . $affix;
+		return WikiMap::getCurrentWikiId() . $affix;
 	}
 
 	/**
 	 * @since 3.0
 	 *
-	 * @return []
+	 * @return
 	 */
 	public static function stats() {
 		return [
@@ -168,7 +160,6 @@ class Site {
 	 * @return array
 	 */
 	public static function getJobClasses( $typeFilter = '' ) {
-
 		if ( $typeFilter === 'SMW' ) {
 			$typeFilter = 'smw.';
 		}

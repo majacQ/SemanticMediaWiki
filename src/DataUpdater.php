@@ -2,16 +2,15 @@
 
 namespace SMW;
 
-use Title;
-use User;
-use WikiPage;
-use SMW\DeferredTransactionalCallableUpdate as DeferredUpdate;
-use Psr\Log\LoggerAwareTrait;
-use SMW\Property\ChangePropagationNotifier;
-use Revision;
-use SMW\MediaWiki\RevisionGuardAwareTrait;
-use SMW\MediaWiki\RevisionGuard;
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\RevisionRecord;
 use Onoi\EventDispatcher\EventDispatcherAwareTrait;
+use Psr\Log\LoggerAwareTrait;
+use SMW\DeferredTransactionalCallableUpdate as DeferredUpdate;
+use SMW\MediaWiki\RevisionGuardAwareTrait;
+use SMW\Property\ChangePropagationNotifier;
+use Title;
+use WikiPage;
 
 /**
  * This function takes care of storing the collected semantic data and
@@ -25,7 +24,7 @@ use Onoi\EventDispatcher\EventDispatcherAwareTrait;
  * type, the data type, the allowed values, or the conversion factors have
  * changed.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9
  *
  * @author mwjames
@@ -52,27 +51,27 @@ class DataUpdater {
 	private $changePropagationNotifier;
 
 	/**
-	 * @var boolean|null
+	 * @var bool|null
 	 */
 	private $canCreateUpdateJob = null;
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $processSemantics = false;
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $isCommandLineMode = false;
 
 	/**
-	 * @var boolean|string
+	 * @var bool|string
 	 */
 	private $isChangeProp = false;
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $isDeferrableUpdate = false;
 
@@ -100,7 +99,7 @@ class DataUpdater {
 	 *
 	 * @since 3.0
 	 *
-	 * @param boolean $isCommandLineMode
+	 * @param bool $isCommandLineMode
 	 */
 	public function isCommandLineMode( $isCommandLineMode ) {
 		$this->isCommandLineMode = $isCommandLineMode;
@@ -109,7 +108,7 @@ class DataUpdater {
 	/**
 	 * @since 3.0
 	 *
-	 * @param boolean $isChangeProp
+	 * @param bool $isChangeProp
 	 */
 	public function isChangeProp( $isChangeProp ) {
 		$this->isChangeProp = (bool)$isChangeProp;
@@ -118,7 +117,7 @@ class DataUpdater {
 	/**
 	 * @since 3.0
 	 *
-	 * @param boolean $isChangeProp
+	 * @param bool $isDeferrableUpdate
 	 */
 	public function isDeferrableUpdate( $isDeferrableUpdate ) {
 		$this->isDeferrableUpdate = (bool)$isDeferrableUpdate;
@@ -145,7 +144,7 @@ class DataUpdater {
 	/**
 	 * @since 1.9
 	 *
-	 * @param boolean $canCreateUpdateJob
+	 * @param bool $canCreateUpdateJob
 	 */
 	public function canCreateUpdateJob( $canCreateUpdateJob ) {
 		$this->canCreateUpdateJob = (bool)$canCreateUpdateJob;
@@ -164,10 +163,9 @@ class DataUpdater {
 	 * @param Title $title
 	 * @param int|null &$latestRevID
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isSkippable( Title $title, ?int &$latestRevID = null ) {
-
 		if ( $this->revisionGuard->isSkippableUpdate( $title, $latestRevID ) ) {
 			return true;
 		}
@@ -184,10 +182,9 @@ class DataUpdater {
 	/**
 	 * @since 1.9
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function doUpdate() {
-
 		if ( !$this->canUpdate() ) {
 			return false;
 		}
@@ -237,7 +234,6 @@ class DataUpdater {
 	}
 
 	private function canUpdate() {
-
 		$title = $this->getSubject()->getTitle();
 
 		// Protect against null and namespace -1 see Bug 50153
@@ -254,7 +250,6 @@ class DataUpdater {
 	 * the given namespace
 	 */
 	public function runUpdate() {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		if ( $this->canCreateUpdateJob === null ) {
@@ -277,8 +272,12 @@ class DataUpdater {
 			$this->revisionGuard->newRevisionFromPage( $wikiPage )
 		);
 
-		if ( $revision instanceof Revision ) {
-			$user = User::newFromId( $revision->getUser() );
+		if ( $revision instanceof RevisionRecord ) {
+			$identity = $revision->getUser();
+			if ( $identity ) {
+				$userFactory = MediaWikiServices::getInstance()->getUserFactory();
+				$user = $userFactory->newFromUserIdentity( $identity );
+			}
 		}
 
 		$this->addAnnotations( $title, $wikiPage, $revision, $user );
@@ -304,7 +303,6 @@ class DataUpdater {
 	}
 
 	private function addAnnotations( Title $title, WikiPage $wikiPage, $revision, $user ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		if ( $revision !== null ) {
@@ -359,17 +357,18 @@ class DataUpdater {
 
 		$propertyAnnotator->addAnnotation();
 
-		\Hooks::run(
-			'SMW::DataUpdater::ContentProcessor',
-			[
-				$this->semanticData,
-				$wikiPage->getContent()
-			]
-		);
+		MediaWikiServices::getInstance()
+			->getHookContainer()
+			->run(
+				'SMW::DataUpdater::ContentProcessor',
+				[
+					$this->semanticData,
+					$wikiPage->getContent()
+				]
+			);
 	}
 
 	private function checkUpdateEditProtection( $wikiPage, $user ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$editProtectionUpdater = $applicationFactory->create( 'EditProtectionUpdater',
@@ -387,7 +386,6 @@ class DataUpdater {
 	 * even finding uses of a property fails after its type changed.
 	 */
 	private function checkChangePropagation() {
-
 		// canCreateUpdateJob: if it is not enabled there's not much to do here
 		// isChangeProp: means the update is part of the ChangePropagationDispatchJob
 		// therefore skip
@@ -399,7 +397,6 @@ class DataUpdater {
 	}
 
 	private function updateData() {
-
 		$this->store->setOption(
 			Store::OPT_CREATE_UPDATE_JOB,
 			$this->canCreateUpdateJob
@@ -425,7 +422,6 @@ class DataUpdater {
 	}
 
 	private function checkForPossibleRedirectPreUpdate( SemanticData $semanticData ) {
-
 		// Check only during online-mode so that when a user operates Special:MovePage
 		// or #redirect the same process is applied
 		if ( !$this->canCreateUpdateJob ) {
@@ -446,7 +442,6 @@ class DataUpdater {
 	}
 
 	private function updateRedirectTarget( SemanticData $semanticData, DIWikiPage $target ) {
-
 		$subject = $semanticData->getSubject();
 
 		// The general rule is that a redirect page is not expected to contain

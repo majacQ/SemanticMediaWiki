@@ -2,27 +2,28 @@
 
 namespace SMW\Tests;
 
-use SMW\ApplicationFactory;
 use SMW\DataValueFactory;
 use SMW\Listener\EventListener\EventHandler;
+use SMW\Services\ServicesFactory as ApplicationFactory;
 use SMW\SPARQLStore\TurtleTriplesBuilder;
-use SMW\Tests\Utils\JSONScript\ParserTestCaseProcessor;
-use SMW\Tests\Utils\JSONScript\ParserHtmlTestCaseProcessor;
-use SMW\Tests\Utils\JSONScript\SpecialPageTestCaseProcessor;
-use SMW\Tests\Utils\JSONScript\QueryTestCaseProcessor;
-use SMW\Tests\Utils\JSONScript\QueryTestCaseInterpreter;
-use SMW\Tests\Utils\JSONScript\RdfTestCaseProcessor;
 use SMW\Tests\Utils\JSONScript\ApiTestCaseProcessor;
 use SMW\Tests\Utils\JSONScript\JsonTestCaseFileHandler;
+use SMW\Tests\Utils\JSONScript\ParserHtmlTestCaseProcessor;
+use SMW\Tests\Utils\JSONScript\ParserTestCaseProcessor;
+use SMW\Tests\Utils\JSONScript\QueryTestCaseInterpreter;
+use SMW\Tests\Utils\JSONScript\QueryTestCaseProcessor;
+use SMW\Tests\Utils\JSONScript\RdfTestCaseProcessor;
+use SMW\Tests\Utils\JSONScript\SpecialPageTestCaseProcessor;
 
 /**
  * It is provided for external extensions that seek a simple way of creating tests
  * with (or without) Semantic MediaWiki integration in mind.
  *
  * @group semantic-mediawiki
+ * @group Database
  * @group medium
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.1
  *
  * @author mwjames
@@ -58,7 +59,7 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 		'special'
 	];
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		$utilityFactory = $this->testEnvironment->getUtilityFactory();
@@ -66,24 +67,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 		$this->runnerFactory = $utilityFactory->newRunnerFactory();
 		$this->validatorFactory = $utilityFactory->newValidatorFactory();
 		$this->apiFactory = $utilityFactory->newMwApiFactory();
-
-		// This ensures that if content is created in the NS_MEDIAWIKI namespace
-		// and an object relies on the MediaWikiNsContentReader then it uses the DB
-		ApplicationFactory::clear();
-		ApplicationFactory::getInstance()->getMediaWikiNsContentReader()->skipMessageCache();
-		DataValueFactory::getInstance()->clear();
-
-		// Reset the Title/TitleParser otherwise a singleton instance holds an outdated
-		// content language reference
-		$this->testEnvironment->resetMediaWikiService( '_MediaWikiTitleCodec' );
-		$this->testEnvironment->resetMediaWikiService( 'TitleParser' );
-
-		// #3414
-		// NameTableAccessException: Expected unused ID from database insert for
-		// 'mw-changed-redirect-target'  into 'change_tag_def',
-		$this->testEnvironment->resetMediaWikiService( 'NameTableStoreFactory' );
-
-		$this->testEnvironment->resetMediaWikiService( 'NamespaceInfo' );
 
 		$this->testEnvironment->resetPoolCacheById( TurtleTriplesBuilder::POOLCACHE_ID );
 
@@ -101,7 +84,9 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 				'smwgDVFeatures' => $GLOBALS['smwgDVFeatures'] & ~SMW_DV_NUMV_USPACE,
 				'smwgCacheUsage' => [
 					'api.browse' => false
-				] + $GLOBALS['smwgCacheUsage']
+				] + $GLOBALS['smwgCacheUsage'],
+				// MW 1.37 defaults to html5 fragment mode. Force legacy mode for consistency.
+				'wgFragmentMode' => [ 'legacy', 'html5' ],
 			]
 		);
 	}
@@ -111,7 +96,7 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	 *
 	 * @return bool
 	 */
-	protected function runTestAssertionForType( string $type ) : bool {
+	protected function runTestAssertionForType( string $type ): bool {
 		return in_array( $type, $this->defaultAssertionTypes );
 	}
 
@@ -121,7 +106,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	 * @param JsonTestCaseFileHandler $jsonTestCaseFileHandler
 	 */
 	protected function runTestCaseFile( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		$this->checkEnvironmentToSkipCurrentTest( $jsonTestCaseFileHandler );
 
 		// Setup
@@ -170,8 +154,7 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	protected function getPermittedSettings() {
 		parent::getPermittedSettings();
 
-		$elasticsearchConfig = function( $val ) {
-
+		$elasticsearchConfig = function ( $val ) {
 			if ( $this->getStore() instanceof \SMWElasticStore ) {
 				$config = $this->getStore()->getConnection( 'elastic' )->getConfig();
 
@@ -188,7 +171,7 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 		// Config isolation causes NamespaceInfo to not access the `MainConfig`
 		// therefore reset the services so that it copies the changed setting.
 		// https://github.com/wikimedia/mediawiki/commit/7ada64684e6477be44405dedbfdb0d96242f2e73
-		$capitalLinks = function( $val ) {
+		$capitalLinks = function ( $val ) {
 			$this->testEnvironment->resetMediaWikiService( 'NamespaceInfo' );
 			return $val;
 		};
@@ -255,13 +238,18 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function prepareTest( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		foreach ( $this->getPermittedSettings() as $key ) {
 			$this->changeGlobalSettingTo(
 				$key,
 				$jsonTestCaseFileHandler->getSettingsFor( $key, $this->getConfigValueCallback( $key ) )
 			);
 		}
+
+		// This ensures that if content is created in the NS_MEDIAWIKI namespace
+		// and an object relies on the MediaWikiNsContentReader then it uses the DB
+		ApplicationFactory::clear();
+		ApplicationFactory::getInstance()->getMediaWikiNsContentReader()->skipMessageCache();
+		DataValueFactory::getInstance()->clear();
 
 		if ( $jsonTestCaseFileHandler->hasSetting( 'smwgFieldTypeFeatures' ) ) {
 			$this->doRunTableSetupBeforeContentCreation();
@@ -289,7 +277,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunTableSetupBeforeContentCreation( $pageList = null ) {
-
 		if ( $pageList !== null ) {
 			$this->createPagesFrom( $pageList );
 		}
@@ -300,7 +287,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunBeforeTest( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		foreach ( $jsonTestCaseFileHandler->findTasksBeforeTestExecutionByType( 'maintenance-run' ) as $runner => $options ) {
 
 			$maintenanceRunner = $this->runnerFactory->newMaintenanceRunner( $runner );
@@ -326,7 +312,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunParserTests( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'parser' );
 
 		if ( $testCases === [] ) {
@@ -355,7 +340,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunParserHtmlTests( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'parser-html' );
 
 		if ( $testCases === [] ) {
@@ -383,7 +367,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunSpecialTests( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'special' );
 
 		if ( $testCases === [] ) {
@@ -414,7 +397,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunRdfTests( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'rdf' );
 
 		if ( $testCases === [] ) {
@@ -437,7 +419,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunQueryStackTests( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		// Set query parser late to ensure that expected settings are adjusted
 		// (language etc.) because the __construct relies on the context language
 		$queryParser = ApplicationFactory::getInstance()->getQueryFactory()->newQueryParser();
@@ -456,7 +437,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunQueryTests( $jsonTestCaseFileHandler, $queryParser, &$i, &$count ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'query' );
 		$count += count( $testCases );
 
@@ -491,7 +471,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunConceptTests( $jsonTestCaseFileHandler, $queryParser, &$i, &$count ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'concept' );
 		$count += count( $testCases );
 
@@ -521,7 +500,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunFormatTests( $jsonTestCaseFileHandler, $queryParser, &$i, &$count ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'format' );
 		$count += count( $testCases );
 
@@ -556,7 +534,6 @@ abstract class JSONScriptServicesTestCaseRunner extends JSONScriptTestCaseRunner
 	}
 
 	private function doRunApiTests( JsonTestCaseFileHandler $jsonTestCaseFileHandler ) {
-
 		$testCases = $jsonTestCaseFileHandler->findTestCasesByType( 'api' );
 
 		if ( $testCases === [] ) {

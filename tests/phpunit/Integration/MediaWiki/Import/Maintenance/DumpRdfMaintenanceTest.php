@@ -2,9 +2,9 @@
 
 namespace SMW\Tests\Integration\MediaWiki\Import\Maintenance;
 
-use SMW\ApplicationFactory;
 use SMW\Listener\EventListener\EventHandler;
-use SMW\Tests\MwDBaseUnitTestCase;
+use SMW\Services\ServicesFactory as ApplicationFactory;
+use SMW\Tests\SMWIntegrationTestCase;
 use SMW\Tests\Utils\UtilityFactory;
 
 /**
@@ -14,29 +14,32 @@ use SMW\Tests\Utils\UtilityFactory;
  * @group mediawiki-database
  * @group medium
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.0
  *
  * @author mwjames
  */
-class DumpRdfMaintenanceTest extends MwDBaseUnitTestCase {
-
-	protected $destroyDatabaseTablesAfterRun = true;
+class DumpRdfMaintenanceTest extends SMWIntegrationTestCase {
 
 	private $importedTitles = [];
 	private $runnerFactory;
 	private $titleValidator;
 	private $stringValidator;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
-		$this->runnerFactory  = UtilityFactory::getInstance()->newRunnerFactory();
-		$this->titleValidator = UtilityFactory::getInstance()->newValidatorFactory()->newTitleValidator();
-		$this->stringValidator = UtilityFactory::getInstance()->newValidatorFactory()->newStringValidator();
+		$utilityFactory = UtilityFactory::getInstance();
+		$this->runnerFactory  = $utilityFactory->newRunnerFactory();
+		$this->titleValidator = $utilityFactory->newValidatorFactory()->newTitleValidator();
+		$this->stringValidator = $utilityFactory->newValidatorFactory()->newStringValidator();
 
 		ApplicationFactory::getInstance()->getSettings()->set( 'smwgExportBCAuxiliaryUse', true );
 		EventHandler::getInstance()->getEventDispatcher()->dispatch( 'exporter.reset' );
+
+		$utilityFactory->newMwHooksHandler()
+			->deregisterListedHooks()
+			->invokeHooksFromRegistry();
 
 		$importRunner = $this->runnerFactory->newXmlImportRunner(
 			__DIR__ . '/../Fixtures/' . 'GenericLoremIpsumTest-Mw-1-19-7.xml'
@@ -48,7 +51,7 @@ class DumpRdfMaintenanceTest extends MwDBaseUnitTestCase {
 		}
 	}
 
-	protected function tearDown() : void {
+	protected function tearDown(): void {
 		ApplicationFactory::getInstance()->clear();
 
 		$pageDeleter = UtilityFactory::getInstance()->newPageDeleter();
@@ -58,7 +61,6 @@ class DumpRdfMaintenanceTest extends MwDBaseUnitTestCase {
 	}
 
 	public function testMaintenanceRdfOutput() {
-
 		$this->testEnvironment->executePendingDeferredUpdates();
 
 		$this->importedTitles = [
@@ -80,7 +82,7 @@ class DumpRdfMaintenanceTest extends MwDBaseUnitTestCase {
 
 		$this->titleValidator->assertThatTitleIsKnown( $this->importedTitles );
 
-		$maintenanceRunner = $this->runnerFactory->newMaintenanceRunner( 'SMW\Maintenance\DumpRdf' );
+		$maintenanceRunner = $this->runnerFactory->newMaintenanceRunner( '\SMW\Maintenance\dumpRDF' );
 		$maintenanceRunner->setQuiet();
 
 		$this->doExportForDefaultOptions( $maintenanceRunner );
@@ -88,9 +90,8 @@ class DumpRdfMaintenanceTest extends MwDBaseUnitTestCase {
 	}
 
 	private function doExportForDefaultOptions( $maintenanceRunner ) {
-
 		$expectedOutputContent = [
-		//	'<rdf:type rdf:resource="&wiki;Category-3ALorem_ipsum"/>',
+		// '<rdf:type rdf:resource="&wiki;Category-3ALorem_ipsum"/>',
 			'<rdfs:label>Lorem ipsum</rdfs:label>',
 			'<rdfs:label>Has annotation uri</rdfs:label>',
 			'<rdfs:label>Has boolean</rdfs:label>',
@@ -113,7 +114,6 @@ class DumpRdfMaintenanceTest extends MwDBaseUnitTestCase {
 	}
 
 	private function doExportForPageOption( $maintenanceRunner ) {
-
 		$expectedOutputContent = [
 			'<rdfs:label>Lorem ipsum</rdfs:label>',
 			'<swivt:masterPage rdf:resource="&wiki;Lorem_ipsum"/>',

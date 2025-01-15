@@ -5,6 +5,7 @@
 			"Khalid Mahmood"
 		]
 	},
+	"smw-categories": "گٹھاں",
 	"smw-special-wantedproperties-filter-none": "کوئی نئیں",
 	"smw-ask-query-search-info": "The query <code><nowiki>$1</nowiki></code> was answered by the {{PLURAL:$3|1=<code>$2</code> (from cache)|<code>$2</code> (from cache)|<code>$2</code>}} in $4 {{PLURAL:$4|سکنٹ}}.",
 	"browse": "وکی پھرولو",
@@ -22,5 +23,7 @@
 	"smw-no-data-available": "کوئی ڈیٹا دستیاب نئیں",
 	"smw-format-datatable-emptytable": "جدول وچ کوئی ڈیٹا دستیاب نئیں",
 	"smw-property-tab-specification": "... ہور",
-	"smw-legend": "کُنجی"
+	"smw-legend": "کُنجی",
+	"smw-listingcontinuesabbrev": "جاری",
+	"smw-showingresults": "تھلیوں دسے گۓ  {{PLURAL:$1|'''1''' نتیجہ|'''$1''' نتیجے}}  شروع #'''$2'''."
 }

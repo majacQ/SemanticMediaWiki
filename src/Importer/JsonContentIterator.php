@@ -3,9 +3,10 @@
 namespace SMW\Importer;
 
 use ArrayIterator;
+use Iterator;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.5
  *
  * @author mwjames
@@ -63,7 +64,7 @@ class JsonContentIterator implements ContentIterator {
 	 *
 	 * @return string
 	 */
-	public function getFingerprint() : string {
+	public function getFingerprint(): string {
 		return md5( json_encode( $this->jsonImportContentsFileDirReader->getContentList() ) );
 	}
 
@@ -74,7 +75,7 @@ class JsonContentIterator implements ContentIterator {
 	 *
 	 * @return Iterator
 	 */
-	public function getIterator() {
+	public function getIterator(): Iterator {
 		return new ArrayIterator( $this->jsonImportContentsFileDirReader->getContentList() );
 	}
 

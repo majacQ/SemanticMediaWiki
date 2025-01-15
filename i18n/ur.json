@@ -20,6 +20,7 @@
 	"smw-paramdesc-csv-valuesep": "قدر الگ کرنے کی تصریح کرتاہے۔",
 	"smw_exportrdf_submit": "برآمد",
 	"properties": "کی خصوصیات",
+	"smw-categories": "زمرہ جات",
 	"smw_purge": "تازہ کرو",
 	"types": "اقسام",
 	"smw_ask_queryhead": "استفہام",
@@ -46,5 +47,7 @@
 	"smw-admin-support": "ہو رہی ہے کی حمایت",
 	"smw-admin-other-functions": "دیگر کردار",
 	"smw-property-reserved-category": "زمرہ",
-	"smw-datavalue-uri-invalid-scheme": "$1کوواجب URI سکیم میں ذیرِفہرست نہیں رکھا گیا۔"
+	"smw-datavalue-uri-invalid-scheme": "$1کوواجب URI سکیم میں ذیرِفہرست نہیں رکھا گیا۔",
+	"smw-listingcontinuesabbrev": "جاری۔",
+	"smw-showingresults": "ذیل میں #<strong>$2</strong> سے {{PLURAL:$1|<strong>1</strong> تک نتیجہ دکھایا گیا ہے|<strong>$1</strong> تک نتائج دکھائے گئے ہیں}}۔"
 }

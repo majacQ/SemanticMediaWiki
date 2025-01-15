@@ -2,11 +2,13 @@
 
 namespace SMW\MediaWiki;
 
+use MediaWiki\Permissions\PermissionManager as MwPermissionManager;
+use RequestContext;
 use Title;
 use User;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.2
  *
  * @author mwjames
@@ -14,16 +16,16 @@ use User;
 class PermissionManager {
 
 	/**
-	 * @var PermissionManager|null
+	 * @var MwPermissionManager
 	 */
 	private $permissionManager;
 
 	/**
 	 * @since 3.2
 	 *
-	 * @param PermissionManager|null $permissionManager
+	 * @param MwPermissionManager $permissionManager
 	 */
-	public function __construct( \MediaWiki\Permissions\PermissionManager $permissionManager = null ) {
+	public function __construct( MwPermissionManager $permissionManager ) {
 		$this->permissionManager = $permissionManager;
 	}
 
@@ -33,21 +35,21 @@ class PermissionManager {
 	 * @param string $action
 	 * @param User|null $user
 	 * @param Title $title
+	 * @param string $rigor One of the PermissionManager::RIGOR_* constants
 	 *
 	 * @return bool
 	 */
-	public function userCan( string $action, User $user = null, Title $title ) : bool {
-
-		// @see Title::userCan
+	public function userCan(
+		string $action,
+		?User $user,
+		Title $title,
+		string $rigor = MwPermissionManager::RIGOR_SECURE
+	): bool {
 		if ( !$user instanceof User ) {
-			$user = $GLOBALS['wgUser'];
+			$user = RequestContext::getMain()->getUser();
 		}
 
-		if ( $this->permissionManager !== null ) {
-			return $this->permissionManager->userCan( $action, $user, $title );
-		}
-
-		return $title->userCan( $action, $user );
+		return $this->permissionManager->userCan( $action, $user, $title, $rigor );
 	}
 
 	/**
@@ -58,13 +60,8 @@ class PermissionManager {
 	 *
 	 * @return bool
 	 */
-	public function userHasRight( User $user, string $action = '' ) : bool {
-
-		if ( $this->permissionManager !== null && method_exists( $this->permissionManager, 'userHasRight' ) ) {
-			return $this->permissionManager->userHasRight( $user, $action );
-		}
-
-		return $user->isAllowed( $action );
+	public function userHasRight( User $user, string $action = '' ): bool {
+		return $this->permissionManager->userHasRight( $user, $action );
 	}
 
 }

@@ -12,6 +12,7 @@
 	"smw_nofloat": "Τὸ \"$1\" οὐκ ἔστιν ἀριθμός.",
 	"smw_exportrdf_submit": "Ἐξάγειν",
 	"properties": "Ἰδιότητες",
+	"smw-categories": "Κατηγορίαι",
 	"types": "Τύποι",
 	"smw_ask_queryhead": "Πεῦσις",
 	"smw_ask_format_as": "Μορφοποιεῖν ὡς:",
@@ -26,5 +27,7 @@
 	"smw_result_prev": "Προηγουμέναι",
 	"smw_result_next": "Ἑπόμεναι",
 	"smw_result_noresults": "Οὐδὲν ἀποτέλεσμα.",
-	"smw-livepreview-loading": "Φορτίζειν…"
+	"smw-livepreview-loading": "Φορτίζειν…",
+	"smw-listingcontinuesabbrev": "συνεχίζεται",
+	"smw-showingresults": "Δεικνύναι κατωτέρω μέχρι {{PLURAL:$1|'''1''' ἀποτέλεσμα|'''$1''' ἀποτελέσματα}}· ἐκκίνησις ἐκ τοῦ #'''$2'''."
 }

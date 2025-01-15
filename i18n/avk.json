@@ -4,6 +4,9 @@
 			"Axel xadolik"
 		]
 	},
+	"smw-categories": "Bulomeem",
 	"browse": "Exulera va wiki",
-	"smw-livepreview-loading": "Vajas…"
+	"smw-livepreview-loading": "Vajas…",
+	"smw-listingcontinuesabbrev": "loon",
+	"smw-showingresults": "Vlevefa nedira va {{PLURAL:$1|'''1''' trasiks|'''$1''' trasiks}} dem #'''$2''' toza."
 }

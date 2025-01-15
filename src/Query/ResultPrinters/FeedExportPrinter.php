@@ -3,7 +3,9 @@
 namespace SMW\Query\ResultPrinters;
 
 use FeedItem;
+use MediaWiki\MediaWikiServices;
 use ParserOptions;
+use RequestContext;
 use Sanitizer;
 use SMW\DataValueFactory;
 use SMW\DIWikiPage;
@@ -26,7 +28,7 @@ use WikiPage;
 final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $httpHeader = true;
 
@@ -98,15 +100,13 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 *
 	 * @param $mode
 	 *
-	 * @return integer
+	 * @return int
 	 */
 	public function getQueryMode( $mode ) {
-
 		if ( $mode == \SMWQueryProcessor::SPECIAL_PAGE ) {
 			return \SMWQuery::MODE_INSTANCES;
 		}
 		return \SMWQuery::MODE_NONE;
-
 	}
 
 	/**
@@ -161,12 +161,11 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 * Returns a string that is to be sent to the caller
 	 *
 	 * @param QueryResult $res
-	 * @param integer $outputMode
+	 * @param int $outputMode
 	 *
 	 * @return string
 	 */
 	protected function getResultText( QueryResult $res, $outputMode ) {
-
 		if ( $outputMode !== SMW_OUTPUT_FILE ) {
 			return $this->getFeedLink( $res, $outputMode );
 		}
@@ -227,7 +226,6 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 * @return string
 	 */
 	protected function feedTitle() {
-
 		if ( $this->params['title'] === '' ) {
 			return $GLOBALS['wgSitename'];
 		}
@@ -243,7 +241,6 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 * @return string
 	 */
 	protected function feedDescription() {
-
 		if ( $this->params['description'] !== '' ) {
 			return $this->msg( 'smw-label-feed-description', $this->params['description'], $this->params['type'] )->text();
 		}
@@ -259,7 +256,6 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 * @return string
 	 */
 	protected function feedURL() {
-
 		if ( $GLOBALS['wgTitle'] instanceof Title ) {
 			return $GLOBALS['wgTitle']->getFullUrl();
 		}
@@ -277,7 +273,6 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 * @return array
 	 */
 	protected function feedItem( array $row ) {
-
 		$rowItems = [];
 		$subject = false;
 
@@ -331,23 +326,17 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 * @return string
 	 */
 	protected function getPageContent( WikiPage $wikiPage ) {
-
 		if ( !in_array( $this->params['page'], [ 'abstract', 'full' ] ) ) {
 			return '';
 		}
 
-		if ( method_exists( $wikiPage, 'getContent' ) ) {
-			$content = $wikiPage->getContent();
+		$content = $wikiPage->getContent();
 
-			if ( $content instanceof TextContent ) {
-				$text = $content->getNativeData();
-			} else {
-				return '';
-			}
+		if ( $content instanceof TextContent ) {
+			$text = $content->getNativeData();
 		} else {
-			$text = $wikiPage->getText();
+			return '';
 		}
-
 		return $this->parse( $wikiPage->getTitle(), $text );
 	}
 
@@ -365,7 +354,6 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	 * @return string
 	 */
 	protected function feedItemDescription( $items, $pageContent ) {
-
 		$text = FeedItem::stripComment( implode( '', $items ) ) . FeedItem::stripComment( $pageContent );
 
 		// Abstract of the first 200 chars
@@ -388,7 +376,12 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 	}
 
 	private function newFeedItem( $title, $rowItems ) {
-		$wikiPage = WikiPage::newFromID( $title->getArticleID() );
+		$mwServices = MediaWikiServices::getInstance();
+		if ( method_exists( $mwServices, 'getWikiPageFactory' ) ) {
+			$wikiPage = $mwServices->getWikiPageFactory()->newFromID( $title->getArticleID() );
+		} else {
+			$wikiPage = WikiPage::newFromID( $title->getArticleID() );
+		}
 
 		if ( $wikiPage !== null && $wikiPage->exists() ) {
 
@@ -421,24 +414,19 @@ final class FeedExportPrinter extends ResultPrinter implements ExportPrinter {
 		return $feedItem;
 	}
 
-	private function parse( Title $title = null, $text ) {
-
+	private function parse( ?Title $title, $text ) {
 		if ( $title === null ) {
 			return $text;
 		}
 
-		$parserOptions = new ParserOptions();
+		$user = RequestContext::getMain()->getUser();
+		$parserOptions = new ParserOptions( $user );
 
-		// FIXME: Remove the if block once compatibility with MW <1.31 is dropped
-		if ( !defined( '\ParserOutput::SUPPORTS_STATELESS_TRANSFORMS' ) || \ParserOutput::SUPPORTS_STATELESS_TRANSFORMS !== 1 ) {
-			$parserOptions->setEditSection( false );
-		}
-
-		return $GLOBALS['wgParser']->parse( $text, $title, $parserOptions )->getText( [ 'enableSectionEditLinks' => false ] );
+		return MediaWikiServices::getInstance()
+			->getParser()->parse( $text, $title, $parserOptions )->getText( [ 'enableSectionEditLinks' => false ] );
 	}
 
 	private function getFeedLink( QueryResult $res, $outputMode ) {
-
 		// Can be viewed as HTML if requested, no more parsing needed
 		$this->isHTML = $outputMode == SMW_OUTPUT_HTML;
 

@@ -1,8 +1,12 @@
 {
 	"@metadata": {
 		"authors": [
+			"Gadao01",
 			"Jatrobat"
 		]
 	},
-	"smw_browse_go": "Hånao"
+	"smw-categories": "Katigoria",
+	"smw_browse_go": "Hånao",
+	"smw-listingcontinuesabbrev": "kont.",
+	"smw-showingresults": "A'annok gi sampapa' asta {{PLURAL:$1|'''1''' na humuyongña|'''$1''' na humuyongña siha}} tumutuhon yan i #'''$2'''."
 }

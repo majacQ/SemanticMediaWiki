@@ -9,7 +9,7 @@ use OutOfBoundsException;
  * trait is required to add `Iterator, Countable, SeekableIterator` as
  * implementation detail.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.2
  *
  * @author mwjames
@@ -17,17 +17,17 @@ use OutOfBoundsException;
 trait SeekableIteratorTrait {
 
 	/**
-	 * @var []
+	 * @var
 	 */
 	private $container = [];
 
 	/**
-	 * @var integer
+	 * @var int
 	 */
 	private $position = 0;
 
 	/**
-	 * @var integer
+	 * @var int
 	 */
 	private $count;
 
@@ -37,7 +37,7 @@ trait SeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function count() {
+	public function count(): int {
 		return $this->count ?? $this->count = count( $this->container );
 	}
 
@@ -47,8 +47,7 @@ trait SeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function seek( $position ) {
-
+	public function seek( $position ): void {
 		if ( !isset( $this->container[$position] ) ) {
 			throw new OutOfBoundsException( "Invalid seek position ($position)" );
 		}
@@ -62,8 +61,8 @@ trait SeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function rewind() {
-		return reset( $this->container );
+	public function rewind(): void {
+		reset( $this->container );
 	}
 
 	/**
@@ -72,8 +71,8 @@ trait SeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
+	#[\ReturnTypeWillChange]
 	public function current() {
-
 		if ( $this->position !== null ) {
 			return $this->container[$this->position];
 		}
@@ -87,6 +86,7 @@ trait SeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
+	#[\ReturnTypeWillChange]
 	public function key() {
 		return $this->position;
 	}
@@ -97,8 +97,8 @@ trait SeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function next() {
-		return next( $this->container );
+	public function next(): void {
+		next( $this->container );
 	}
 
 	/**
@@ -107,7 +107,7 @@ trait SeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function valid() {
+	public function valid(): bool {
 		return key( $this->container ) !== null;
 	}
 

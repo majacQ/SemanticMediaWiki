@@ -4,9 +4,10 @@ namespace SMW\Tests\Integration\SQLStore;
 
 use SMW\DIProperty;
 use SMW\DIWikiPage;
-use SMW\Tests\MwDBaseUnitTestCase;
+use SMW\Tests\SMWIntegrationTestCase;
 use SMW\Tests\Utils\PageCreator;
 use SMW\Tests\Utils\PageDeleter;
+use SMW\Tests\Utils\UtilityFactory;
 use SMW\Tests\Utils\Validators\SemanticDataValidator;
 use Title;
 
@@ -16,27 +17,34 @@ use Title;
  * @group SMWExtension
  * @group semantic-mediawiki-integration
  * @group mediawiki-database
+ * @group Database
  * @group medium
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.0
  *
  * @author mwjames
  */
-class SubSemanticDataDBIntegrationTest extends MwDBaseUnitTestCase {
+class SubSemanticDataDBIntegrationTest extends SMWIntegrationTestCase {
 
 	private $title;
 
-	protected function tearDown() : void {
-		$pageDeleter= new PageDeleter();
+	protected function setUp(): void {
+		parent::setUp();
 
-		$pageDeleter->deletePage( $this->title );
+		$utilityFactory = UtilityFactory::getInstance();
+		$utilityFactory->newMwHooksHandler()
+			->deregisterListedHooks()
+			->invokeHooksFromRegistry();
+	}
+
+	protected function tearDown(): void {
+		$pageDeleter = new PageDeleter();
 
 		parent::tearDown();
 	}
 
 	public function testCreatePageWithSubobject() {
-
 		$this->title = Title::newFromText( __METHOD__ );
 
 		$pageCreator = new PageCreator();
@@ -79,7 +87,6 @@ class SubSemanticDataDBIntegrationTest extends MwDBaseUnitTestCase {
 	}
 
 	public function testPredefinedProperty_Canonical_MonolingualText() {
-
 		$this->title = Title::newFromText( 'Display_precision_of', SMW_NS_PROPERTY );
 
 		$pageCreator = new PageCreator();
@@ -120,7 +127,6 @@ class SubSemanticDataDBIntegrationTest extends MwDBaseUnitTestCase {
 	}
 
 	public function testPredefinedProperty_Key_MonolingualText() {
-
 		$this->title = Title::newFromText( 'Display_precision_of', SMW_NS_PROPERTY );
 
 		$pageCreator = new PageCreator();

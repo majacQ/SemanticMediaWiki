@@ -2,10 +2,13 @@
 
 namespace SMW\Protection;
 
+use MediaWiki\MediaWikiServices;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
+use RequestContext;
 use SMW\DIProperty;
 use SMW\MediaWiki\Hooks\ArticleProtectComplete;
+use SMW\MediaWiki\PageInfoProvider;
 use SMW\Message;
 use SMW\Property\Annotators\EditProtectedPropertyAnnotator;
 use SMW\SemanticData;
@@ -13,7 +16,7 @@ use User;
 use WikiPage;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.5
  *
  * @author mwjames
@@ -31,12 +34,12 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	private $user;
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $isRestrictedUpdate = false;
 
 	/**
-	 * @var boolean|string
+	 * @var bool|string
 	 */
 	private $editProtectionRight = false;
 
@@ -51,12 +54,12 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	 * @param WikiPage $wikiPage
 	 * @param User|null $user
 	 */
-	public function __construct( WikiPage $wikiPage, User $user = null ) {
+	public function __construct( WikiPage $wikiPage, ?User $user = null ) {
 		$this->wikiPage = $wikiPage;
 		$this->user = $user;
 
 		if ( $this->user === null ) {
-			$this->user = $GLOBALS['wgUser'];
+			$this->user = RequestContext::getMain()->getUser();
 		}
 	}
 
@@ -74,7 +77,7 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	/**
 	 * @since 2.5
 	 *
-	 * @param string|boolean $editProtectionRight
+	 * @param string|bool $editProtectionRight
 	 */
 	public function setEditProtectionRight( $editProtectionRight ) {
 		$this->editProtectionRight = $editProtectionRight;
@@ -83,7 +86,7 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	/**
 	 * @since 2.5
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isRestrictedUpdate() {
 		return $this->isRestrictedUpdate;
@@ -95,13 +98,12 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	 * @param SemanticData $semanticData
 	 */
 	public function doUpdateFrom( SemanticData $semanticData ) {
-
 		// Do nothing
 		if ( $this->editProtectionRight === false ) {
 			return;
 		}
 
-		list( $isEditProtected, $isAnnotationBySystem ) = $this->fetchEditProtectedInfo( $semanticData );
+		[ $isEditProtected, $isAnnotationBySystem ] = $this->fetchEditProtectedInfo( $semanticData );
 
 		$title = $this->wikiPage->getTitle();
 
@@ -109,7 +111,8 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 			return;
 		}
 
-		$restrictions = array_flip( $title->getRestrictions( 'edit' ) );
+		$restrictionStore = MediaWikiServices::getInstance()->getRestrictionStore();
+		$restrictions = array_flip( $restrictionStore->getRestrictions( $title, 'edit' ) );
 
 		// No `Is edit protected` was found and the restriction doesn't contain
 		// a matchable `editProtectionRight`
@@ -121,7 +124,7 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 			return $this->doUpdateRestrictions( $isEditProtected );
 		}
 
-		if ( (bool)$isEditProtected === (bool)$title->isProtected( 'edit' ) ) {
+		if ( (bool)$isEditProtected === PageInfoProvider::isProtected( $title, 'edit' ) ) {
 			return $this->log( __METHOD__ . ' Status already set, no update required' );
 		}
 
@@ -129,7 +132,6 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	}
 
 	private function fetchEditProtectedInfo( $semanticData ) {
-
 		// Whether or not the update was invoked by the ArticleProtectComplete hook
 		$this->isRestrictedUpdate = $semanticData->getOption( ArticleProtectComplete::RESTRICTED_UPDATE ) === true;
 		$property = new DIProperty( '_EDIP' );
@@ -161,7 +163,6 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	}
 
 	private function doUpdateRestrictions( $isEditProtected ) {
-
 		$protections = [];
 		$expiry = [];
 
@@ -196,7 +197,6 @@ class EditProtectionUpdater implements LoggerAwareInterface {
 	}
 
 	private function log( $message, $context = [] ) {
-
 		if ( $this->logger === null ) {
 			return;
 		}

@@ -5,14 +5,14 @@ namespace SMW\MediaWiki\Specials\Admin\Maintenance;
 use Html;
 use Onoi\MessageReporter\MessageReporterFactory;
 use SMW\MediaWiki\Renderer\HtmlFormRenderer;
-use SMW\MediaWiki\Specials\Admin\TaskHandler;
-use SMW\MediaWiki\Specials\Admin\OutputFormatter;
 use SMW\MediaWiki\Specials\Admin\ActionableTask;
+use SMW\MediaWiki\Specials\Admin\OutputFormatter;
+use SMW\MediaWiki\Specials\Admin\TaskHandler;
 use SMW\Store;
 use WebRequest;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since   2.5
  *
  * @author mwjames
@@ -61,7 +61,7 @@ class TableSchemaTaskHandler extends TaskHandler implements ActionableTask {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function getTask() : string {
+	public function getTask(): string {
 		return 'updatetables';
 	}
 
@@ -70,7 +70,7 @@ class TableSchemaTaskHandler extends TaskHandler implements ActionableTask {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function isTaskFor( string $action ) : bool {
+	public function isTaskFor( string $action ): bool {
 		return $action === $this->getTask();
 	}
 
@@ -80,27 +80,25 @@ class TableSchemaTaskHandler extends TaskHandler implements ActionableTask {
 	 * {@inheritDoc}
 	 */
 	public function getHtml() {
+		if ( !$this->hasFeature( SMW_ADM_SETUP ) ) {
+			return '';
+		}
 
 		$this->htmlFormRenderer
 			->setName( 'buildtables' )
 			->setMethod( 'get' )
 			->addHiddenField( 'action', $this->getTask() )
-			->addHeader( 'h3', $this->msg( 'smw-admin-db' ) )
+			->addHeader( 'h2', $this->msg( 'smw-admin-db' ) )
 			->addParagraph( $this->msg( 'smw-admin-dbdocu' ) );
 
-		if ( $this->hasFeature( SMW_ADM_SETUP ) ) {
-			$this->htmlFormRenderer
-				->addHiddenField( 'udsure', 'yes' )
-				->addSubmitButton(
-					$this->msg( 'smw-admin-dbbutton' ),
-					[
-						'class' => ''
-					]
-				);
-		} else {
-			$this->htmlFormRenderer
-				->addParagraph( $this->msg( 'smw-admin-feature-disabled' ) );
-		}
+		$this->htmlFormRenderer
+			->addHiddenField( 'udsure', 'yes' )
+			->addSubmitButton(
+				$this->msg( 'smw-admin-dbbutton' ),
+				[
+					'class' => ''
+				]
+			);
 
 		return Html::rawElement( 'div', [], $this->htmlFormRenderer->getForm() );
 	}
@@ -111,7 +109,6 @@ class TableSchemaTaskHandler extends TaskHandler implements ActionableTask {
 	 * {@inheritDoc}
 	 */
 	public function handleRequest( WebRequest $webRequest ) {
-
 		if ( !$this->hasFeature( SMW_ADM_SETUP ) ) {
 			return;
 		}

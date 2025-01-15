@@ -7,7 +7,7 @@ use Onoi\MessageReporter\MessageReporterAware;
 use SMW\Utils\CliMsgFormatter;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.5
  *
  * @author mwjames
@@ -30,14 +30,19 @@ class Importer implements MessageReporterAware {
 	private $messageReporter;
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $isEnabled = true;
 
 	/**
-	 * @var integer|boolean
+	 * @var int|bool
 	 */
 	private $reqVersion = false;
+
+	/**
+	 * @var ?string
+	 */
+	private $importer;
 
 	/**
 	 * @since 2.5
@@ -64,7 +69,7 @@ class Importer implements MessageReporterAware {
 	/**
 	 * @since 3.0
 	 *
-	 * @param boolean $isEnabled
+	 * @param bool $isEnabled
 	 */
 	public function isEnabled( $isEnabled ) {
 		$this->isEnabled = $isEnabled;
@@ -73,17 +78,23 @@ class Importer implements MessageReporterAware {
 	/**
 	 * @since 2.5
 	 *
-	 * @param integer|boolean $reqVersion
+	 * @param int|bool $reqVersion
 	 */
 	public function setReqVersion( $reqVersion ) {
 		$this->reqVersion = $reqVersion;
 	}
 
 	/**
+	 * @since 4.0
+	 */
+	public function setImporter( string $importer ) {
+		$this->importer = $importer;
+	}
+
+	/**
 	 * @since 2.5
 	 */
 	public function runImport() {
-
 		if ( $this->isEnabled === false ) {
 			return $this->messageReporter->reportMessage( "\nImport support was not enabled (or skipped), stopping the task.\n" );
 		}
@@ -96,6 +107,9 @@ class Importer implements MessageReporterAware {
 			$this->messageReporter->reportMessage( "\nImporting from $key ...\n" );
 
 			foreach ( $contents as $importContents ) {
+				if ( $this->importer ) {
+					$importContents->setImportPerformer( $this->importer );
+				}
 
 				if ( $importContents->getVersion() !== $this->reqVersion ) {
 					$this->messageReporter->reportMessage( "   ... version mismatch, abort import for $key\n" );
@@ -119,7 +133,6 @@ class Importer implements MessageReporterAware {
 	}
 
 	private function doImport( ImportContents $importContents ) {
-
 		$cliMsgFormatter = new CliMsgFormatter();
 
 		if ( $importContents->getErrors() === [] ) {

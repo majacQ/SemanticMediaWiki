@@ -4,8 +4,8 @@ namespace SMW\Tests\Integration\Query;
 
 use SMW\Query\Language\SomeProperty;
 use SMW\Query\Language\ThingDescription;
-use SMW\Query\PrintRequest as PrintRequest;
-use SMW\Tests\MwDBaseUnitTestCase;
+use SMW\Query\PrintRequest;
+use SMW\Tests\SMWIntegrationTestCase;
 use SMW\Tests\Utils\UtilityFactory;
 use SMWPropertyValue as PropertyValue;
 use SMWQuery as Query;
@@ -13,26 +13,29 @@ use SMWQuery as Query;
 /**
  * @group semantic-mediawiki-integration
  * @group semantic-mediawiki
+ * @group Database
  * @group medium
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.2
  *
  * @author mwjames
  */
-class RandomQueryResultOrderIntegrationTest extends MwDBaseUnitTestCase {
+class RandomQueryResultOrderIntegrationTest extends SMWIntegrationTestCase {
 
 	private $fixturesProvider;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
-		$this->fixturesProvider = UtilityFactory::getInstance()->newFixturesFactory()->newFixturesProvider();
+		$utilityFactory = UtilityFactory::getInstance();
+		$utilityFactory->newMwHooksHandler()->invokeHooksFromRegistry();
+
+		$this->fixturesProvider = $utilityFactory->newFixturesFactory()->newFixturesProvider();
 		$this->fixturesProvider->setupDependencies( $this->getStore() );
 	}
 
-	protected function tearDown() : void {
-
+	protected function tearDown(): void {
 		$fixturesCleaner = UtilityFactory::getInstance()->newFixturesFactory()->newFixturesCleaner();
 		$fixturesCleaner->purgeAllKnownFacts();
 
@@ -40,7 +43,6 @@ class RandomQueryResultOrderIntegrationTest extends MwDBaseUnitTestCase {
 	}
 
 	public function testRandomOrder() {
-
 		$factsheet = $this->fixturesProvider->getFactsheet( 'Berlin' );
 		$populationValue = $factsheet->getPopulationValue();
 

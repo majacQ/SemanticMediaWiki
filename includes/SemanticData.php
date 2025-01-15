@@ -2,11 +2,13 @@
 
 namespace SMW;
 
-use SMW\DataModel\SubSemanticData;
+use MediaWiki\Json\JsonUnserializable;
+use MediaWiki\Json\JsonUnserializer;
 use SMW\DataModel\SequenceMap;
+use SMW\DataModel\SubSemanticData;
+use SMW\Exception\SemanticDataImportException;
 use SMW\Exception\SubSemanticDataException;
 use SMW\Localizer\Localizer;
-use SMW\Exception\SemanticDataImportException;
 use SMWContainerSemanticData;
 use SMWDataItem;
 use SMWDataValue;
@@ -30,7 +32,7 @@ use SMWDIContainer;
  * @author Markus Krötzsch
  * @author Jeroen De Dauw
  */
-class SemanticData {
+class SemanticData implements JsonUnserializable {
 
 	/**
 	 * Returns the last modified timestamp the data were stored to the Store or
@@ -58,7 +60,7 @@ class SemanticData {
 	 *
 	 * @var string
 	 */
-	static protected $mPropertyPrefix = '';
+	protected static $mPropertyPrefix = '';
 
 	/**
 	 * States whether this is a stub object. Stubbing might happen on
@@ -66,7 +68,7 @@ class SemanticData {
 	 *
 	 * @todo Check why this is public and document this here. Or fix it.
 	 *
-	 * @var boolean
+	 * @var bool
 	 */
 	public $stubObject;
 
@@ -74,7 +76,7 @@ class SemanticData {
 	 * Array mapping property keys (string) to arrays of SMWDataItem
 	 * objects.
 	 *
-	 * @var SMWDataItem[]
+	 * @var SMWDataItem[][]
 	 */
 	protected $mPropVals = [];
 
@@ -88,7 +90,7 @@ class SemanticData {
 	/**
 	 * States whether the container holds any normal properties.
 	 *
-	 * @var boolean
+	 * @var bool
 	 */
 	protected $mHasVisibleProps = false;
 
@@ -98,7 +100,7 @@ class SemanticData {
 	 * label). For some settings we need this to decide if a Factbox is
 	 * displayed.
 	 *
-	 * @var boolean
+	 * @var bool
 	 */
 	protected $mHasVisibleSpecs = false;
 
@@ -111,7 +113,7 @@ class SemanticData {
 	 * @note This setting is merely for optimization. The SMW data model
 	 * never cares about the multiplicity of identical data assignments.
 	 *
-	 * @var boolean
+	 * @var bool
 	 */
 	protected $mNoDuplicates;
 
@@ -172,7 +174,7 @@ class SemanticData {
 	 * This is kept public to keep track of the depth during a recursive processing
 	 * when accessed through the SubSemanticData instance.
 	 *
-	 * @var integer
+	 * @var int
 	 */
 	public $subContainerDepthCounter = 0;
 
@@ -180,7 +182,7 @@ class SemanticData {
 	 * Constructor.
 	 *
 	 * @param DIWikiPage $subject to which this data refers
-	 * @param boolean $noDuplicates stating if duplicate data should be avoided
+	 * @param bool $noDuplicates stating if duplicate data should be avoided
 	 */
 	public function __construct( DIWikiPage $subject, $noDuplicates = true ) {
 		$this->clear();
@@ -211,9 +213,9 @@ class SemanticData {
 	/**
 	 * @since 3.2
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
-	public function isStub() : bool {
+	public function isStub(): bool {
 		return false;
 	}
 
@@ -263,7 +265,7 @@ class SemanticData {
 	 *
 	 * @param DIProperty $property
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasProperty( DIProperty $property ) {
 		return isset( $this->mProperties[$property->getKey()] ) || array_key_exists( $property->getKey(), $this->mProperties );
@@ -305,7 +307,6 @@ class SemanticData {
 	 * @return mixed|null
 	 */
 	public function getExtensionData( $key ) {
-
 		if ( !isset( $this->extensionData[$key] ) ) {
 			return null;
 		}
@@ -322,7 +323,6 @@ class SemanticData {
 	 * @return mixed
 	 */
 	public function getOption( $key, $default = null ) {
-
 		if ( !$this->options instanceof Options ) {
 			$this->options = new Options();
 		}
@@ -341,7 +341,6 @@ class SemanticData {
 	 * @param string $value
 	 */
 	public function setOption( $key, $value ) {
-
 		if ( !$this->options instanceof Options ) {
 			$this->options = new Options();
 		}
@@ -383,7 +382,6 @@ class SemanticData {
 	 * @return string
 	 */
 	public function getHash() {
-
 		if ( $this->hash !== null ) {
 			return $this->hash;
 		}
@@ -399,7 +397,6 @@ class SemanticData {
 	 * @return SemanticData[]
 	 */
 	public function getSubSemanticData() {
-
 		// Remove the check in 3.0
 		$subSemanticData = $this->subSemanticData;
 
@@ -417,7 +414,6 @@ class SemanticData {
 	 * @since 2.5
 	 */
 	public function clearSubSemanticData() {
-
 		if ( $this->subContainerDepthCounter > 0 ) {
 			$this->subContainerDepthCounter--;
 		}
@@ -434,7 +430,7 @@ class SemanticData {
 	 * function DIProperty::isShown(). The name is kept for
 	 * compatibility.
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasVisibleProperties() {
 		return $this->mHasVisibleProps;
@@ -448,7 +444,7 @@ class SemanticData {
 	 * function DIProperty::isShown(). The name is kept for
 	 * compatibility.
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasVisibleSpecialProperties() {
 		return $this->mHasVisibleSpecs;
@@ -466,15 +462,14 @@ class SemanticData {
 	 * @param $dataItem SMWDataItem
 	 */
 	public function addPropertyObjectValue( DIProperty $property, SMWDataItem $dataItem ) {
-
 		$this->hash = null;
 
-		if( $dataItem instanceof SMWDIContainer ) {
+		if ( $dataItem instanceof SMWDIContainer ) {
 			$this->addSubSemanticData( $dataItem->getSemanticData() );
 			$dataItem = $dataItem->getSemanticData()->getSubject();
 		}
 
-		if( $property->getKey() === DIProperty::TYPE_MODIFICATION_DATE ) {
+		if ( $property->getKey() === DIProperty::TYPE_MODIFICATION_DATE ) {
 			$this->setOption( self::OPT_LAST_MODIFIED, $dataItem->getMwTimestamp() );
 		}
 
@@ -577,7 +572,6 @@ class SemanticData {
 	 * @param SMWDataValue $dataValue
 	 */
 	public function addDataValue( SMWDataValue $dataValue ) {
-
 		if ( !$dataValue->getProperty() instanceof DIProperty || !$dataValue->isValid() ) {
 
 			$processingErrorMsgHandler = new ProcessingErrorMsgHandler(
@@ -628,11 +622,10 @@ class SemanticData {
 	 * @since 1.8
 	 */
 	public function removePropertyObjectValue( DIProperty $property, SMWDataItem $dataItem ) {
-
 		$this->hash = null;
 
-		//delete associated subSemanticData
-		if( $dataItem instanceof SMWDIContainer ) {
+		// delete associated subSemanticData
+		if ( $dataItem instanceof SMWDIContainer ) {
 			$this->removeSubSemanticData( $dataItem->getSemanticData() );
 			$dataItem = $dataItem->getSemanticData()->getSubject();
 		}
@@ -650,7 +643,7 @@ class SemanticData {
 		}
 
 		if ( $this->mNoDuplicates ) {
-			//this didn't get checked for my tests, but should work
+			// this didn't get checked for my tests, but should work
 			unset( $this->mPropVals[$property->getKey()][md5( $dataItem->getHash() )] );
 
 			if ( isset( $this->countMap[$key] ) && $key === '_INST' ) {
@@ -659,8 +652,8 @@ class SemanticData {
 				$this->countMap[$key]--;
 			}
 		} else {
-			foreach( $this->mPropVals[$property->getKey()] as $index => $di ) {
-				if( $di->equals( $dataItem ) ) {
+			foreach ( $this->mPropVals[$property->getKey()] as $index => $di ) {
+				if ( $di->equals( $dataItem ) ) {
 					unset( $this->mPropVals[$property->getKey()][$index] );
 				}
 
@@ -692,7 +685,6 @@ class SemanticData {
 	 * @param $property DIProperty
 	 */
 	public function removeProperty( DIProperty $property ) {
-
 		$this->hash = null;
 		$key = $property->getKey();
 
@@ -737,10 +729,8 @@ class SemanticData {
 	 * data for subobjects.
 	 *
 	 * @since 1.8
-	 *
-	 * @return boolean
 	 */
-	public function isEmpty() {
+	public function isEmpty(): bool {
 		return $this->getProperties() === [] && $this->getSubSemanticData() === [];
 	}
 
@@ -756,8 +746,7 @@ class SemanticData {
 	 * @throws SemanticDataImportException
 	 */
 	public function importDataFrom( SemanticData $semanticData ) {
-
-		if( !$this->mSubject->equals( $semanticData->getSubject() ) ) {
+		if ( !$this->mSubject->equals( $semanticData->getSubject() ) ) {
 			throw new SemanticDataImportException( "SemanticData can only represent data about one subject. Importing data for another subject is not possible." );
 		}
 
@@ -766,7 +755,7 @@ class SemanticData {
 		// Shortcut when copying into empty objects that don't ask for
 		// more duplicate elimination:
 		if ( count( $this->mProperties ) == 0 &&
-		     ( $semanticData->mNoDuplicates >= $this->mNoDuplicates ) ) {
+			 ( $semanticData->mNoDuplicates >= $this->mNoDuplicates ) ) {
 
 			$this->mProperties = $semanticData->getProperties();
 			$this->sequenceMap = $semanticData->getSequenceMap();
@@ -780,8 +769,7 @@ class SemanticData {
 				if ( isset( $this->sequenceMap[$key] ) && SequenceMap::canMap( $property ) ) {
 					$sequenceMap = array_flip( $this->sequenceMap[$key] );
 
-					usort ( $this->mPropVals[$key], function( $a, $b ) use( $sequenceMap ) {
-
+					usort( $this->mPropVals[$key], static function ( $a, $b ) use( $sequenceMap ) {
 						$pos_a = $sequenceMap[md5( $a->getHash() )];
 						$pos_b = $sequenceMap[md5( $b->getHash() )];
 
@@ -797,7 +785,7 @@ class SemanticData {
 				$values = $semanticData->getPropertyValues( $property );
 
 				foreach ( $values as $dataItem ) {
-					$this->addPropertyObjectValue( $property, $dataItem);
+					$this->addPropertyObjectValue( $property, $dataItem );
 				}
 			}
 		}
@@ -810,7 +798,7 @@ class SemanticData {
 		// Subobject references are part of the value representation and assigned
 		// to the relevant property which may be resolved at a later point
 		if ( !$semanticData->isStub() ) {
-			foreach( $semanticData->getSubSemanticData() as $subSemanticData ) {
+			foreach ( $semanticData->getSubSemanticData() as $subSemanticData ) {
 				$this->addSubSemanticData( $subSemanticData );
 			}
 		}
@@ -828,7 +816,7 @@ class SemanticData {
 	 * @param SemanticData $semanticData
 	 */
 	public function removeDataFrom( SemanticData $semanticData ) {
-		if( !$this->mSubject->equals( $semanticData->getSubject() ) ) {
+		if ( !$this->mSubject->equals( $semanticData->getSubject() ) ) {
 			return;
 		}
 
@@ -836,7 +824,7 @@ class SemanticData {
 			$this->removeProperty( $property );
 		}
 
-		foreach( $semanticData->getSubSemanticData() as $semData ) {
+		foreach ( $semanticData->getSubSemanticData() as $semData ) {
 			$this->removeSubSemanticData( $semData );
 		}
 	}
@@ -845,9 +833,9 @@ class SemanticData {
 	 * @see SubSemanticData::hasSubSemanticData
 	 * @since 1.9
 	 *
-	 * @param string $subobjectName|null
+	 * @param string|null $subobjectName
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasSubSemanticData( $subobjectName = null ) {
 		return $this->subSemanticData->hasSubSemanticData( $subobjectName );
@@ -882,10 +870,95 @@ class SemanticData {
 	 * @since 1.8
 	 *
 	 * @param SemanticData $semanticData
-	*/
+	 */
 	public function removeSubSemanticData( SemanticData $semanticData ) {
 		$this->hash = null;
 		$this->subSemanticData->removeSubSemanticData( $semanticData );
+	}
+
+	/**
+	 * Implements \JsonSerializable.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @return array
+	 */
+	public function jsonSerialize(): array {
+		# T312589 explicitly calling jsonSerialize() will be unnecessary
+		# in the future.
+		$json = [
+			'stubObject' => $this->stubObject,
+			'mPropVals' => array_map( static function ( $x ) {
+					return array_map( static function ( $y ) {
+						return $y->jsonSerialize();
+					}, $x );
+			}, $this->mPropVals ),
+			'mProperties' => array_map( static function ( $x ) {
+					return $x->jsonSerialize();
+			}, $this->mProperties ),
+			'mHasVisibleProps' => $this->mHasVisibleProps,
+			'mHasVisibleSpecs' => $this->mHasVisibleSpecs,
+			'mNoDuplicates' => $this->mNoDuplicates,
+			'mSubject' => $this->mSubject ? $this->mSubject->jsonSerialize() : null,
+			'subSemanticData' => $this->subSemanticData ? $this->subSemanticData->jsonSerialize() : null,
+			'errors' => $this->errors,
+			'hash' => $this->hash,
+			'options' => $this->options ? $this->options->jsonSerialize() : null,
+			'extensionData' => $this->extensionData,
+			'sequenceMap' => $this->sequenceMap,
+			'countMap' => $this->countMap,
+			'_type_' => get_class( $this ),
+		];
+		return $json;
+	}
+
+	public static function maybeUnserialize( $unserializer, $value ) {
+		# Compatibility thunk for MW versions with T312589 fixed/unfixed
+		return is_object( $value ) ? $value :
+			$unserializer->unserialize( $value );
+	}
+
+	public static function maybeUnserializeArray( $unserializer, array $value ) {
+		# Compatibility thunk for MW versions with T312589 fixed/unfixed
+		$result = [];
+		foreach ( $value as $k => $v ) {
+			$result[$k] = self::maybeUnserialize( $unserializer, $v );
+		}
+		return $result;
+	}
+
+	/**
+	 * Implements JsonUnserializable.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @param JsonUnserializer $unserializer Unserializer
+	 * @param array $json JSON to be unserialized
+	 *
+	 * @return self
+	 */
+	public static function newFromJsonArray( JsonUnserializer $unserializer, array $json ) {
+		# T312589: In the future JsonCodec will take care of unserializing
+		# the values in the $json array itself.
+		$obj = new self(
+			self::maybeUnserialize( $unserializer, $json['mSubject'] ),
+			$json['mNoDuplicates']
+		);
+		$obj->stubObject = $json['stubObject'];
+		$obj->mPropVals = array_map( static function ( $x ) use( $unserializer ) {
+			return self::maybeUnserializeArray( $unserializer, $x );
+		}, $json['mPropVals'] );
+		$obj->mProperties = self::maybeUnserializeArray( $unserializer, $json['mProperties'] );
+		$obj->mHasVisibleProps = $json['mHasVisibleProps'];
+		$obj->mHasVisibleSpecs = $json['mHasVisibleSpecs'];
+		$obj->subSemanticData = $json['subSemanticData'] ? self::maybeUnserialize( $unserializer, $json['subSemanticData'] ) : null;
+		$obj->errors = $json['errors'];
+		$obj->hash = $json['hash'];
+		$obj->options = $json['options'] ? self::maybeUnserialize( $unserializer, $json['options'] ) : null;
+		$obj->extensionData = $json['extensionData'];
+		$obj->sequenceMap = $json['sequenceMap'];
+		$obj->countMap = $json['countMap'];
+		return $obj;
 	}
 
 }

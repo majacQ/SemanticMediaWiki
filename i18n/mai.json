@@ -35,6 +35,7 @@
 	"smw_exportrdf_submit": "निर्यात",
 	"uriresolver": "यूआरएलरिसोल्वर",
 	"properties": "गुणधर्म",
+	"smw-categories": "श्रेणीसभ",
 	"smw-special-property-searchform-options": "विकल्प",
 	"smw-special-wantedproperties-filter-label": "फिल्टर:",
 	"smw-special-wantedproperties-filter-none": "कोनो नै",
@@ -111,5 +112,7 @@
 	"smw-search-profile-link-caption-query": "देखी",
 	"smw-search-show": "देखाबी",
 	"smw-search-hide": "नुकाबी",
-	"log-name-smw": "सिमेंटिक मीडियाविकि"
+	"log-name-smw": "सिमेंटिक मीडियाविकि",
+	"smw-listingcontinuesabbrev": "शेष आगाँ।",
+	"smw-showingresults": "नीचाँ एतऽ धरि {{PLURAL:$1|'''1''' परिणाम|'''$1''' परिणाम सभ}}  #'''$2''' सँ प्रारम्भ भऽ कऽ।"
 }

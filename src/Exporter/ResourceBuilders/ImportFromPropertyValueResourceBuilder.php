@@ -3,16 +3,16 @@
 namespace SMW\Exporter\ResourceBuilders;
 
 use SMW\DataValueFactory;
+use SMW\DataValues\ImportValue;
 use SMW\DIProperty;
 use SMWDataItem as DataItem;
 use SMWDIBlob as DIBlob;
 use SMWExpData as ExpData;
-use SMWImportValue as ImportValue;
 
 /**
  * @private
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.5
  *
  * @author mwjames
@@ -34,7 +34,6 @@ class ImportFromPropertyValueResourceBuilder extends PredefinedPropertyValueReso
 	 * {@inheritDoc}
 	 */
 	public function addResourceValue( ExpData $expData, DIProperty $property, DataItem $dataItem ) {
-
 		$diSubject = $expData->getSubject()->getDataItem();
 
 		if ( $diSubject === null ) {
@@ -45,7 +44,6 @@ class ImportFromPropertyValueResourceBuilder extends PredefinedPropertyValueReso
 			$property->getKey(),
 			$diSubject->getNamespace()
 		);
-
 
 		if ( $expNsResource === null ) {
 			return;

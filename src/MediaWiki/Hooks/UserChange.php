@@ -2,12 +2,12 @@
 
 namespace SMW\MediaWiki\Hooks;
 
-use SMW\ApplicationFactory;
+use MediaWiki\User\UserIdentity;
+use SMW\MediaWiki\HookListener;
 use SMW\MediaWiki\Jobs\UpdateJob;
 use SMW\NamespaceExaminer;
-use SMW\MediaWiki\HookListener;
+use SMW\Services\ServicesFactory as ApplicationFactory;
 use Title;
-use User;
 
 /**
  * @see https://www.mediawiki.org/wiki/Manual:Hooks/BlockIpComplete
@@ -17,7 +17,7 @@ use User;
  * Act on events that happen outside of the normal parser process to ensure that
  * changes to pre-defined properties related to a user status can be invoked.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.0
  *
  * @author mwjames
@@ -55,15 +55,20 @@ class UserChange implements HookListener {
 	/**
 	 * @since 3.0
 	 *
-	 * @param User|string $user
+	 * @param UserIdentity|string|null $user
 	 */
 	public function process( $user ) {
-
 		if ( !$this->namespaceExaminer->isSemanticEnabled( NS_USER ) ) {
 			return false;
 		}
 
-		if ( $user instanceof User ) {
+		// getTargetUserIdentity returns null if it is not user(eg. CIDR)
+		// https://github.com/SemanticMediaWiki/SemanticMediaWiki/issues/5263
+		if ( $user === null ) {
+			return false;
+		}
+
+		if ( $user instanceof UserIdentity ) {
 			$user = $user->getName();
 		}
 

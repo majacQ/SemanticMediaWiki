@@ -2,11 +2,12 @@
 
 namespace SMW\MediaWiki;
 
-use Revision;
+use IDBAccessObject;
+use MediaWiki\Revision\SlotRecord;
 use Title;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.2
  *
  * @author mwjames
@@ -16,7 +17,7 @@ class MediaWikiNsContentReader {
 	use RevisionGuardAwareTrait;
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $skipMessageCache = false;
 
@@ -32,10 +33,9 @@ class MediaWikiNsContentReader {
 	 *
 	 * @param string $name
 	 *
-	 * @return string
+	 * @return string|false
 	 */
 	public function read( $name ) {
-
 		$content = '';
 
 		if ( !$this->skipMessageCache && wfMessage( $name )->exists() ) {
@@ -50,28 +50,21 @@ class MediaWikiNsContentReader {
 	}
 
 	private function readFromDatabase( $name ) {
-
 		$title = Title::makeTitleSafe( NS_MEDIAWIKI, ucfirst( $name ) );
 
 		if ( $title === null ) {
 			return '';
 		}
 
-		$revision = $this->revisionGuard->newRevisionFromTitle( $title, false, Revision::READ_LATEST );
+		$revision = $this->revisionGuard->newRevisionFromTitle(
+			$title, false, IDBAccessObject::READ_LATEST
+		);
 
 		if ( $revision === null ) {
 			return '';
 		}
 
-		if ( class_exists( 'WikitextContent' ) ) {
-			return $revision->getContent()->getNativeData();
-		}
-
-		if ( method_exists( $revision, 'getContent' ) ) {
-			return $revision->getContent( Revision::RAW );
-		}
-
-		return $revision->getRawText();
+		return $revision->getContent( SlotRecord::MAIN )->getText();
 	}
 
 }

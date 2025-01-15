@@ -2,13 +2,13 @@
 
 namespace SMW\Tests\Integration;
 
-use SMW\ApplicationFactory;
-use SMW\MediaWiki\Hooks\BaseTemplateToolbox;
-use Title;
+use SMW\MediaWiki\Hooks\SidebarBeforeOutput;
+use SMW\Services\ServicesFactory as ApplicationFactory;
 use SMW\Tests\PHPUnitCompat;
+use Title;
 
 /**
- * @covers \SMW\MediaWiki\Hooks\BaseTemplateToolbox
+ * @covers \SMW\MediaWiki\Hooks\SidebarBeforeOutput
  * @covers \SMWInfolink
  *
  * @group SMW
@@ -17,27 +17,26 @@ use SMW\Tests\PHPUnitCompat;
  * @group semantic-mediawiki-integration
  * @group mediawiki-databaseless
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9
  *
  * @author mwjames
  */
-class EncodingIntegrationTest extends \PHPUnit_Framework_TestCase {
+class EncodingIntegrationTest extends \PHPUnit\Framework\TestCase {
 
 	use PHPUnitCompat;
 
 	/**
-	 * @dataProvider baseTemplateToolboxDataProvider
+	 * @dataProvider sidebarBeforeOutputDataProvider
 	 */
-	public function testBaseTemplateToolboxURLEncoding( $setup, $expected ) {
+	public function testSidebarBeforeOutputURLEncoding( $setup, $expected ) {
+		$sidebar = [];
 
-		$toolbox  = [];
-
-		foreach ( $setup['settings'] as $key => $value) {
+		foreach ( $setup['settings'] as $key => $value ) {
 			ApplicationFactory::getInstance()->getSettings()->set( $key, $value );
 		}
 
-		$instance = new BaseTemplateToolbox(
+		$instance = new SidebarBeforeOutput(
 			ApplicationFactory::getInstance()->getNamespaceExaminer()
 		);
 
@@ -47,34 +46,32 @@ class EncodingIntegrationTest extends \PHPUnit_Framework_TestCase {
 			]
 		);
 
-		$instance->process( $setup['skinTemplate'], $toolbox );
+		$instance->process( $setup['skin'], $sidebar );
 
 		$this->assertContains(
 			$expected,
-			$toolbox['smw-browse']['href']
+			$sidebar['TOOLBOX']['smwbrowselink']['href']
 		);
 
 		ApplicationFactory::clear();
 	}
 
-	public function baseTemplateToolboxDataProvider() {
-
+	public function sidebarBeforeOutputDataProvider() {
 		$specialName = str_replace( '%3A', ':',
 			\SMW\Encoder::encode( \SpecialPage::getTitleFor( 'Browse' )->getPrefixedText() )
 		);
 
 		$provider = [];
 
-		$provider[] = [ $this->newBaseTemplateToolboxSetup( '2013/11/05' ), "$specialName/:2013-2F11-2F05" ];
-		$provider[] = [ $this->newBaseTemplateToolboxSetup( '2013-06-30' ), "$specialName/:2013-2D06-2D30" ];
-		$provider[] = [ $this->newBaseTemplateToolboxSetup( '2013$06&30' ), "$specialName/:2013-2406-2630" ];
-		$provider[] = [ $this->newBaseTemplateToolboxSetup( '2013\Foo' ),   "$specialName/:2013-5CFoo" ];
+		$provider[] = [ $this->newSidebarBeforeOutputSetup( '2013/11/05' ), "$specialName/:2013-2F11-2F05" ];
+		$provider[] = [ $this->newSidebarBeforeOutputSetup( '2013-06-30' ), "$specialName/:2013-2D06-2D30" ];
+		$provider[] = [ $this->newSidebarBeforeOutputSetup( '2013$06&30' ), "$specialName/:2013-2406-2630" ];
+		$provider[] = [ $this->newSidebarBeforeOutputSetup( '2013\Foo' ), "$specialName/:2013-5CFoo" ];
 
 		return $provider;
 	}
 
-	private function newBaseTemplateToolboxSetup( $text ) {
-
+	private function newSidebarBeforeOutputSetup( $text ) {
 		$settings = [
 			'smwgNamespacesWithSemanticLinks' => [ NS_MAIN => true ],
 			'smwgBrowseFeatures'           => SMW_BROWSE_TLINK
@@ -84,29 +81,32 @@ class EncodingIntegrationTest extends \PHPUnit_Framework_TestCase {
 			->disableOriginalConstructor()
 			->getMock();
 
+		$output = $this->getMockBuilder( '\OutputPage' )
+			->disableOriginalConstructor()
+			->getMock();
+
+		$output->expects( $this->atLeastOnce() )
+			->method( 'isArticle' )
+			->willReturn( true );
+
 		$skin = $this->getMockBuilder( '\Skin' )
 			->disableOriginalConstructor()
 			->getMock();
 
 		$skin->expects( $this->atLeastOnce() )
 			->method( 'getTitle' )
-			->will( $this->returnValue( Title::newFromText( $text, NS_MAIN ) ) );
+			->willReturn( Title::newFromText( $text, NS_MAIN ) );
 
 		$skin->expects( $this->atLeastOnce() )
 			->method( 'msg' )
-			->will( $this->returnValue( $message ) );
+			->willReturn( $message )
+			->with( 'smw_browselink' );
 
-		$skinTemplate = $this->getMockBuilder( '\SkinTemplate' )
-			->disableOriginalConstructor()
-			->getMock();
+		$skin->expects( $this->any() )
+			->method( 'getOutput' )
+			->willReturn( $output );
 
-		$skinTemplate->expects( $this->atLeastOnce() )
-			->method( 'getSkin' )
-			->will( $this->returnValue( $skin ) );
-
-		$skinTemplate->data['isarticle'] = true;
-
-		return [ 'settings' => $settings, 'skinTemplate' => $skinTemplate ];
+		return [ 'settings' => $settings, 'skin' => $skin ];
 	}
 
 }

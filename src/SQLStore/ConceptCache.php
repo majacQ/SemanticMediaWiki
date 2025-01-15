@@ -10,9 +10,10 @@ use SMW\SQLStore\QueryEngine\ConceptQuerySegmentBuilder;
 use SMWSQLStore3;
 use SMWWikiPageValue;
 use Title;
+use Wikimedia\Rdbms\Platform\ISQLPlatform;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.2
  *
  * @author Jeroen De Dauw < jeroendedauw@gmail.com >
@@ -30,7 +31,7 @@ class ConceptCache {
 	private $conceptQuerySegmentBuilder;
 
 	/**
-	 * @var integer
+	 * @var int
 	 */
 	private $upperLimit = 50;
 
@@ -38,7 +39,7 @@ class ConceptCache {
 	 * @since 2.2
 	 *
 	 * @param SMWSQLStore3 $store
-	 * @param ConceptQuerySegmentBuilder $conceptQueryResolver
+	 * @param ConceptQuerySegmentBuilder $conceptQuerySegmentBuilder
 	 */
 	public function __construct( SMWSQLStore3 $store, ConceptQuerySegmentBuilder $conceptQuerySegmentBuilder ) {
 		$this->store = $store;
@@ -48,7 +49,7 @@ class ConceptCache {
 	/**
 	 * @since 2.2
 	 *
-	 * @param integer $upperLimit
+	 * @param int $upperLimit
 	 */
 	public function setUpperLimit( $upperLimit ) {
 		$this->upperLimit = (int)$upperLimit;
@@ -64,7 +65,6 @@ class ConceptCache {
 	 * @return array of error strings (empty if no errors occurred)
 	 */
 	public function refreshConceptCache( Title $concept ) {
-
 		$errors = array_merge(
 			$this->conceptQuerySegmentBuilder->getErrors(),
 			$this->refresh( $concept )
@@ -147,7 +147,8 @@ class ConceptCache {
 			$db->tableName( $querySegment->joinTable ) . " AS {$querySegment->alias}" .
 			$querySegment->from .
 			( $where ? ' WHERE ' : '' ) . $where . " LIMIT " . $this->upperLimit,
-			__METHOD__
+			__METHOD__,
+			ISQLPlatform::QUERY_CHANGE_ROWS
 		);
 
 		$db->update(

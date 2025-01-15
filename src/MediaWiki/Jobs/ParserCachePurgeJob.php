@@ -2,13 +2,14 @@
 
 namespace SMW\MediaWiki\Jobs;
 
+use RequestContext;
 use SMW\MediaWiki\Job;
-use SMW\ApplicationFactory;
+use SMW\Services\ServicesFactory as ApplicationFactory;
 use Title;
 use WikiPage;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.1
  *
  * @author mwjames
@@ -31,8 +32,7 @@ class ParserCachePurgeJob extends Job {
 	 *
 	 * @param WikiPage|null $page
 	 */
-	public function updateParserCache( WikiPage $page = null ) {
-
+	public function updateParserCache( ?WikiPage $page = null ) {
 		$applicationFactory = ApplicationFactory::getInstance();
 		$logger = $applicationFactory->getMediaWikiLogger();
 
@@ -45,7 +45,7 @@ class ParserCachePurgeJob extends Job {
 		if ( $this->hasParameter( 'user' ) ) {
 			$causeAgent = $this->getParameter( 'user' );
 		} else {
-			$causeAgent = $GLOBALS['wgUser']->getName();
+			$causeAgent = RequestContext::getMain()->getUser()->getName();
 		}
 
 		if ( $page === null ) {
@@ -54,18 +54,12 @@ class ParserCachePurgeJob extends Job {
 
 		$title = $page->getTitle();
 
-		// MW 1.32+
-		// @see ApiPurge
-		if ( method_exists( $page, 'updateParserCache' ) ) {
-			$page->updateParserCache(
-				[
-					'causeAction' => $causeAction,
-					'causeAgent' => $causeAgent
-				]
-			);
-		} else {
-			$this->runLegacyUpdateParserCache( $page );
-		}
+		$page->updateParserCache(
+			[
+				'causeAction' => $causeAction,
+				'causeAgent' => $causeAgent
+			]
+		);
 
 		$logger->info(
 			[ 'ParserCache', 'Forced update for: {title}', 'causeAction: {causeAction}' ],
@@ -79,7 +73,6 @@ class ParserCachePurgeJob extends Job {
 	 * @since 3.1
 	 */
 	public function run() {
-
 		$page = $this->newWikiPage( $this->getTitle() );
 		$page->doPurge();
 		$this->updateParserCache( $page );
@@ -88,33 +81,6 @@ class ParserCachePurgeJob extends Job {
 	}
 
 	protected function newWikiPage( $title ) {
-		return WikiPage::factory( $title );
+		return ApplicationFactory::getInstance()->newPageCreator()->createPage( $title );
 	}
-
-	/**
-	 * Only for MW 1.31
-	 */
-	private function runLegacyUpdateParserCache( $page ) {
-
-		$applicationFactory = ApplicationFactory::getInstance();
-		$enableParserCache = true;
-
-		$popts = $page->makeParserOptions( 'canonical' );
-		$content = $page->getContent( \Revision::RAW );
-
-		if ( $content ) {
-			$p_result = $content->getParserOutput(
-				$page->getTitle(),
-				$page->getLatest(),
-				$popts,
-				$enableParserCache
-			);
-
-			if ( $enableParserCache ) {
-				$parserCache = $applicationFactory->singleton( 'ParserCache' );
-				$parserCache->save( $p_result, $page, $popts );
-			}
-		}
-	}
-
 }

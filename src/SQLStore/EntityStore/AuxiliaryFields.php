@@ -3,9 +3,8 @@
 namespace SMW\SQLStore\EntityStore;
 
 use SMW\MediaWiki\Database;
-use SMW\Utils\HmacSerializer;
 use SMW\SQLStore\SQLStore;
-use RuntimeException;
+use SMW\Utils\HmacSerializer;
 
 /**
  * @private
@@ -47,8 +46,7 @@ class AuxiliaryFields {
 	 *
 	 * @return FieldList
 	 */
-	public function prefetchFieldList( array $subjects ) : FieldList {
-
+	public function prefetchFieldList( array $subjects ): FieldList {
 		if ( $subjects === [] ) {
 			return new FieldList( [] );
 		}
@@ -84,12 +82,11 @@ class AuxiliaryFields {
 	/**
 	 * @since 3.2
 	 *
-	 * @param integer $sid
+	 * @param int $sid
 	 * @param array|null $seqmap
 	 * @param array|null $countmap
 	 */
-	public function setFieldMaps( $sid, array $seqmap = null, array $countmap = null ) {
-
+	public function setFieldMaps( $sid, ?array $seqmap = null, ?array $countmap = null ) {
 		$cache = $this->idCacheManager->get( self::COUNTMAP_CACHE_ID );
 
 		if ( $seqmap !== [] ) {
@@ -108,19 +105,18 @@ class AuxiliaryFields {
 			$countmap = null;
 		}
 
-		$rows = [
-			'smw_id' => $sid,
-			'smw_seqmap' => $seqmap,
-			'smw_countmap' => $countmap
-		];
-
 		$this->connection->upsert(
 			SQLStore::ID_AUXILIARY_TABLE,
-			$rows,
 			[
-				'smw_id'
+				'smw_id' => $sid,
+				'smw_seqmap' => $seqmap,
+				'smw_countmap' => $countmap
 			],
-			$rows,
+			'smw_id',
+			[
+				'smw_seqmap' => $seqmap,
+				'smw_countmap' => $countmap
+			],
 			__METHOD__
 		);
 
@@ -128,7 +124,6 @@ class AuxiliaryFields {
 	}
 
 	private function fetchCountMap( array $hashes ) {
-
 		return $this->connection->select(
 			[
 				// tableName conversion required by SQlite otherwise the

@@ -3,6 +3,7 @@
 		"authors": [
 			"Gunnernett",
 			"Harald Khan",
+			"Jon Harald Søby",
 			"Neuraxıs",
 			"Njardarlogar",
 			"Ranveig"
@@ -81,6 +82,7 @@
 	"smw_exportrdf_submit": "Eksport",
 	"uriresolver": "URI-løysar",
 	"properties": "Eigenskapar",
+	"smw-categories": "Kategoriar",
 	"smw_properties_docu": "Følgjande eigenskapar er nytta på wikien.",
 	"smw_property_template": "$1 av typen $2 ($3)",
 	"smw_propertylackspage": "Alle eigenskapar burde vore skildra av ei sida.",
@@ -171,5 +173,8 @@
 	"smw_unknowntype": "Typen «$1» som er definert for eigenskapen er ikkje støtta.",
 	"smw_concept_header": "Sider av konseptet «$1»",
 	"smw_conceptarticlecount": "Syner nedanfor {{PLURAL:$1|éi side|$1 sider}}",
-	"smw-livepreview-loading": "Lastar inn&nbsp;…"
+	"smw-livepreview-loading": "Lastar inn&nbsp;…",
+	"smw-type-tab-properties": "Eigenskapar",
+	"smw-listingcontinuesabbrev": "vidare",
+	"smw-showingresults": "Nedanfor er opp til {{PLURAL:$1|<strong>eitt</strong>|<strong>$1</strong>}} resultat som byrjar med nummer <strong>$2</strong> vist{{PLURAL:$1||e}}."
 }

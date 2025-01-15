@@ -1,10 +1,9 @@
 <?php
 
-use SMW\ApplicationFactory;
-use SMW\DIProperty;
 use SMW\Localizer;
-use SMW\Message;
 use SMW\MediaWiki\Pipetrick;
+use SMW\Message;
+use SMW\Services\ServicesFactory as ApplicationFactory;
 use SMW\Utils\Image;
 
 /**
@@ -71,7 +70,7 @@ class SMWWikiPageValue extends SMWDataValue {
 	/**
 	 * Cache for the related MW page ID.
 	 * Set to -1 if not computed yet.
-	 * @var integer
+	 * @var int
 	 */
 	protected $m_id = -1;
 
@@ -87,7 +86,7 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * accept pages in this namespace. This field is initialized when
 	 * creating the object (based on the type id or base on the preference
 	 * of some subclass); it is not usually changed afterwards.
-	 * @var integer
+	 * @var int
 	 */
 	protected $m_fixNamespace = NS_MAIN;
 
@@ -104,18 +103,21 @@ class SMWWikiPageValue extends SMWDataValue {
 	public function __construct( $typeid ) {
 		parent::__construct( $typeid );
 		switch ( $typeid ) {
-			case '_wpp' : case '__sup':
+			case '_wpp':
+			case '__sup':
 				$this->m_fixNamespace = SMW_NS_PROPERTY;
-			break;
-			case '_wpc' : case '__suc': case '__sin':
+				break;
+			case '_wpc':
+			case '__suc':
+			case '__sin':
 				$this->m_fixNamespace = NS_CATEGORY;
-			break;
-			case '_wps' :
+				break;
+			case '_wps':
 				$this->m_fixNamespace = SMW_NS_SCHEMA;
-			break;
-			case '_wpu' :
+				break;
+			case '_wpu':
 				$this->m_fixNamespace = NS_USER;
-			break;
+				break;
 			default: // case '_wpg':
 				$this->m_fixNamespace = NS_MAIN;
 		}
@@ -168,7 +170,7 @@ class SMWWikiPageValue extends SMWDataValue {
 		}
 
 		if ( $value[0] == '#' ) {
-			if ( is_null( $this->m_contextPage ) ) {
+			if ( $this->m_contextPage === null ) {
 				$this->addErrorMsg( [ 'smw-datavalue-wikipage-missing-fragment-context', $value ] );
 				return;
 			} else {
@@ -200,11 +202,10 @@ class SMWWikiPageValue extends SMWDataValue {
 
 	/**
 	 * @see SMWDataValue::loadDataItem()
-	 * @param $dataitem SMWDataItem
-	 * @return boolean
+	 * @param $dataItem SMWDataItem
+	 * @return bool
 	 */
 	protected function loadDataItem( SMWDataItem $dataItem ) {
-
 		if ( $dataItem->getDIType() == SMWDataItem::TYPE_CONTAINER ) {
 			// might throw an exception, we just pass it through
 			$dataItem = $dataItem->getSemanticData()->getSubject();
@@ -274,12 +275,11 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * user input, this includes the full value that one would also see in
 	 * MediaWiki.
 	 *
-	 * @param $linked mixed generate links if not null or false
+	 * @param null $linked mixed generate links if not null or false
 	 * @return string
 	 */
 	public function getShortWikiText( $linked = null ) {
-
-		if ( is_null( $linked ) || $linked === false ||
+		if ( $linked === null || $linked === false ||
 			$this->m_outformat == '-' || !$this->isValid() ||
 			$this->m_caption === '' ) {
 			$text = $this->m_caption !== false ? $this->m_caption : $this->getWikiValue();
@@ -304,7 +304,8 @@ class SMWWikiPageValue extends SMWDataValue {
 
 		if ( Image::isImage( $this->m_dataitem ) && $this->m_dataitem->getInterwiki() === '' && !$noImage ) {
 			$linkEscape = '';
-			$options = $this->m_outformat === false ? 'frameless|border|text-top|' : str_replace( ';', '|', \Sanitizer::removeHTMLtags( $this->m_outformat ) );
+			$sanitizedHtml = Sanitizer::removeSomeTags( $this->m_outformat );
+			$options = $this->m_outformat === false ? 'frameless|border|text-top|' : str_replace( ';', '|', $sanitizedHtml );
 			$defaultCaption = '|' . $this->getShortCaptionText() . '|' . $options;
 		} else {
 			$linkEscape = ':';
@@ -336,30 +337,29 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * Display the value as in getShortWikiText() but create HTML.
 	 * The only difference is that images are not embedded.
 	 *
-	 * @param Linker $linker mixed the Linker object to use or null if no linking is desired
+	 * @param Linker|null $linker mixed the Linker object to use or null if no linking is desired
 	 * @return string
 	 */
 	public function getShortHTMLText( $linker = null ) {
-
 		if ( $this->m_fragment !== '' ) {
 			$this->linkAttributes['class'] = 'smw-subobject-entity';
 		}
 
 		// init the Title object, may reveal hitherto unnoticed errors:
-		if ( !is_null( $linker ) && $linker !== false &&
+		if ( $linker !== null && $linker !== false &&
 				$this->m_caption !== '' && $this->m_outformat != '-' ) {
 			$this->getTitle();
 		}
 
-		if ( is_null( $linker ) || $linker === false || !$this->isValid() ||
+		if ( $linker === null || $linker === false || !$this->isValid() ||
 				$this->m_outformat == '-' || $this->m_caption === '' ) {
 
 			$caption = $this->m_caption === false ? $this->getWikiValue() : $this->m_caption;
-			return \Sanitizer::removeHTMLtags( $caption );
+			return Sanitizer::removeSomeTags( $caption );
 		}
 
 		$caption = $this->m_caption === false ? $this->getShortCaptionText() : $this->m_caption;
-		$caption =  \Sanitizer::removeHTMLtags( $caption );
+		$caption = Sanitizer::removeSomeTags( $caption );
 
 		if ( $this->getNamespace() == NS_MEDIA ) { // this extra case *is* needed
 			return $linker->makeMediaLinkObj( $this->getTitle(), $caption );
@@ -378,7 +378,7 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * getShortWikiText() but does not use the caption. Instead, it always
 	 * takes the long display form (wiki value).
 	 *
-	 * @param $linked mixed if true the result will be linked
+	 * @param null $linked mixed if true the result will be linked
 	 * @return string
 	 */
 	public function getLongWikiText( $linked = null ) {
@@ -392,7 +392,7 @@ class SMWWikiPageValue extends SMWDataValue {
 			$noImage = true;
 		}
 
-		if ( is_null( $linked ) || $linked === false || $this->m_outformat == '-' ) {
+		if ( $linked === null || $linked === false || $this->m_outformat == '-' ) {
 			return $this->getWikiValue();
 		} elseif ( Image::isImage( $this->m_dataitem ) && $this->m_dataitem->getInterwiki() === '' && !$noImage ) {
 			// Embed images and other files
@@ -424,17 +424,16 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * Display the "long" value in HTML. This behaves largely like
 	 * getLongWikiText() but does not embed images.
 	 *
-	 * @param $linker mixed if a Linker is given, the result will be linked
+	 * @param null $linker mixed if a Linker is given, the result will be linked
 	 * @return string
 	 */
 	public function getLongHTMLText( $linker = null ) {
-
 		if ( $this->m_fragment !== '' ) {
 			$this->linkAttributes['class'] = 'smw-subobject-entity';
 		}
 
 		// init the Title object, may reveal hitherto unnoticed errors:
-		if ( !is_null( $linker ) && ( $this->m_outformat != '-' ) ) {
+		if ( $linker !== null && ( $this->m_outformat != '-' ) ) {
 			$this->getTitle();
 		}
 
@@ -442,19 +441,21 @@ class SMWWikiPageValue extends SMWDataValue {
 			return $this->getErrorText();
 		}
 
+		$sanitizerCallback = [ Sanitizer::class, 'removeSomeTags' ];
+
 		if ( $linker === null || $linker === false || $this->m_outformat == '-' ) {
-			return \Sanitizer::removeHTMLtags( $this->getWikiValue() );
+			return call_user_func( $sanitizerCallback, $this->getWikiValue() );
 		} elseif ( $this->getNamespace() == NS_MEDIA ) { // this extra case is really needed
 			return $linker->makeMediaLinkObj(
 				$this->getTitle(),
-				\Sanitizer::removeHTMLtags( $this->getLongCaptionText() )
+				call_user_func( $sanitizerCallback, $this->getLongCaptionText() )
 			);
 		}
 
 		// all others use default linking, no embedding of images here
 		return $linker->link(
 			$this->getTitle(),
-			 \Sanitizer::removeHTMLtags( $this->getLongCaptionText() ),
+			call_user_func( $sanitizerCallback, $this->getLongCaptionText() ),
 			$this->linkAttributes,
 			$this->queryParameters
 		);
@@ -471,12 +472,14 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * @return string
 	 */
 	public function getWikiValue() {
-
 		if ( $this->getOption( self::SHORT_FORM, false ) ) {
 			$text = $this->getText();
 		} elseif ( $this->getOption( self::PREFIXED_FORM, false ) ) {
 			$text = $this->getPrefixedText();
-		} elseif ( in_array( $this->getTypeID(), [ '_wpp', '_wps', '_wpu' ] ) || $this->m_fixNamespace == NS_MAIN ) {
+		} elseif (
+			in_array( $this->getTypeID(), [ '_wpp', '_wps', '_wpu', '__sup', '__sin', '__suc', '__con' ] ) ||
+			$this->m_fixNamespace === NS_MAIN
+		) {
 			$text = $this->getPrefixedText();
 		} else {
 			$text = $this->getText();
@@ -519,7 +522,6 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * @return Title
 	 */
 	public function getTitle() {
-
 		if ( $this->m_title !== null ) {
 			return $this->m_title;
 		}
@@ -530,7 +532,7 @@ class SMWWikiPageValue extends SMWDataValue {
 				return $this->m_title = $title;
 			}
 
-			// #3278, Special handling of `>` in the user namespace, MW (1.31+)
+			// #3278, Special handling of `>` in the user namespace
 			// added a prefix to users that originate from imported content
 			if (
 				$this->m_dataitem->getNamespace() === NS_USER &&
@@ -569,7 +571,7 @@ class SMWWikiPageValue extends SMWDataValue {
 	 */
 	private function getArticleID() {
 		if ( $this->m_id === false ) {
-			$this->m_id = !is_null( $this->getTitle() ) ? $this->m_title->getArticleID() : 0;
+			$this->m_id = $this->getTitle() !== null ? $this->m_title->getArticleID() : 0;
 		}
 
 		return $this->m_id;
@@ -606,7 +608,6 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * @return string
 	 */
 	public function getText() {
-
 		if ( $this->getOption( self::NO_TEXT_TRANSFORMATION, false ) ) {
 			return $this->m_dataitem->getDBkey();
 		}
@@ -621,7 +622,6 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * @return string
 	 */
 	public function getPrefixedText() {
-
 		if ( $this->m_prefixedtext !== '' ) {
 			return $this->m_prefixedtext;
 		}
@@ -663,7 +663,6 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * @return string
 	 */
 	public function getPreferredCaption() {
-
 		if ( ( $preferredCaption = parent::getPreferredCaption() ) !== '' && $preferredCaption !== false ) {
 			return $preferredCaption;
 		}
@@ -774,7 +773,6 @@ class SMWWikiPageValue extends SMWDataValue {
 	 * @return string
 	 */
 	public function getDisplayTitle() {
-
 		if ( $this->m_dataitem === null || !$this->hasFeature( SMW_DV_WPV_DTITLE ) ) {
 			return '';
 		}

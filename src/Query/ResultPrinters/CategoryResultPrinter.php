@@ -2,18 +2,19 @@
 
 namespace SMW\Query\ResultPrinters;
 
+use SMW\Localizer;
 use SMW\MediaWiki\Collator;
+use SMW\MediaWiki\Renderer\WikitextTemplateRenderer;
+use SMW\Services\ServicesFactory as ApplicationFactory;
+use SMW\Utils\HtmlColumns;
 use SMWDataItem as DataItem;
 use SMWQueryResult as QueryResult;
-use SMW\Utils\HtmlColumns;
-use SMW\ApplicationFactory;
-use SMW\Localizer;
 
 /**
  * Print query results in alphabetic groups displayed in columns, a la the
  * standard Category pages.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.6
  *
  * @author David Loomer
@@ -38,9 +39,13 @@ class CategoryResultPrinter extends ResultPrinter {
 	private $userParam;
 
 	/**
-	 * @var integer
+	 * @var int
 	 */
 	private $numColumns;
+
+	private HtmlColumns $htmlColumns;
+	private WikitextTemplateRenderer $templateRenderer;
+	private Collator $collator;
 
 	/**
 	 * @see ResultPrinter::getName
@@ -147,7 +152,6 @@ class CategoryResultPrinter extends ResultPrinter {
 	 * {@inheritDoc}
 	 */
 	protected function getResultText( QueryResult $res, $outputMode ) {
-
 		$this->initServices();
 		$contents = $this->getContents( $res, $outputMode );
 
@@ -157,7 +161,7 @@ class CategoryResultPrinter extends ResultPrinter {
 
 		$language = Localizer::getInstance()->getUserLanguage();
 
-		$this->htmlColumns->setContinueAbbrev( wfMessage( 'listingcontinuesabbrev' )->text() );
+		$this->htmlColumns->setContinueAbbrev( wfMessage( 'smw-listingcontinuesabbrev' )->text() );
 		$this->htmlColumns->setColumns( $this->numColumns );
 		$this->htmlColumns->isRTL( $language->isRTL() );
 
@@ -229,14 +233,14 @@ class CategoryResultPrinter extends ResultPrinter {
 
 		// Make label for finding further results
 		if ( $this->linkFurtherResults( $res ) ) {
-			$contents[$last_letter][] = $this->getFurtherResultsLink( $res, $outputMode )->getText( SMW_OUTPUT_WIKI, $this->mLinker );
+			$index = isset( $last_letter ) ? $last_letter : $first_letter;
+			$contents[$index][] = $this->getFurtherResultsLink( $res, $outputMode )->getText( SMW_OUTPUT_WIKI, $this->mLinker );
 		}
 
 		return $contents;
 	}
 
 	private function first_letter( QueryResult $res, DataItem $dataItem ) {
-
 		$sortKey = $dataItem->getSortKey();
 
 		if ( $dataItem->getDIType() === DataItem::TYPE_WIKIPAGE ) {
@@ -247,7 +251,6 @@ class CategoryResultPrinter extends ResultPrinter {
 	}
 
 	private function row_to_contents( $row, &$first_col ) {
-
 		// has anything but the first column been printed?
 		$found_values = false;
 		$result = '';
@@ -294,7 +297,6 @@ class CategoryResultPrinter extends ResultPrinter {
 	}
 
 	private function row_to_template( $row, $res, &$first_col ) {
-
 		// explicitly number parameters for more robust parsing (values may contain "=")
 		$i = 0;
 

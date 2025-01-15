@@ -2,15 +2,16 @@
 
 namespace SMW\MediaWiki;
 
+use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\SlotRecord;
 use ParserOutput;
-use Revision;
 use SMW\ParserData;
 use SMW\SemanticData;
 use User;
 use WikiPage;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.0
  *
  * @author mwjames
@@ -25,7 +26,7 @@ class EditInfo {
 	private $page;
 
 	/**
-	 * @var Revision
+	 * @var RevisionRecord|null
 	 */
 	private $revision;
 
@@ -41,12 +42,8 @@ class EditInfo {
 
 	/**
 	 * @since 1.9
-	 *
-	 * @param WikiPage $page
-	 * @param Revision $revision
-	 * @param User|null $user
 	 */
-	public function __construct( WikiPage $page, Revision $revision = null, User $user = null ) {
+	public function __construct( WikiPage $page, ?RevisionRecord $revision, User $user ) {
 		$this->page = $page;
 		$this->revision = $revision;
 		$this->user = $user;
@@ -67,7 +64,6 @@ class EditInfo {
 	 * @return SemanticData|null
 	 */
 	public function fetchSemanticData() {
-
 		$parserOutput = $this->fetchEditInfo()->getOutput();
 
 		if ( $parserOutput === null ) {
@@ -80,17 +76,16 @@ class EditInfo {
 	/**
 	 * @since 2.0
 	 */
-	public function fetchEditInfo() : self {
-
+	public function fetchEditInfo(): self {
 		if ( $this->page !== null && $this->revision === null ) {
 			$this->revision = $this->revisionGuard->newRevisionFromPage( $this->page );
 		}
 
-		if ( !$this->revision instanceof Revision ) {
+		if ( !$this->revision instanceof RevisionRecord ) {
 			return $this;
 		}
 
-		$content = $this->revision->getContent();
+		$content = $this->revision->getContent( SlotRecord::MAIN );
 
 		$prepareEdit = $this->page->prepareContentForEdit(
 			$content,
@@ -99,13 +94,7 @@ class EditInfo {
 			$content->getContentHandler()->getDefaultFormat()
 		);
 
-		// #3943
-		// https://github.com/wikimedia/mediawiki/commit/fdbb64f3546e6fda0ee0ce003467b4cfb13a090f
-		if ( method_exists( $prepareEdit, 'getOutput' ) ) {
-			$this->parserOutput = $prepareEdit->getOutput();
-		} else {
-			$this->parserOutput = isset( $prepareEdit->output ) ? $prepareEdit->output : null;
-		}
+		$this->parserOutput = $prepareEdit->getOutput();
 
 		return $this;
 	}

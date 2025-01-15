@@ -1,8 +1,11 @@
 {
 	"@metadata": {
 		"authors": [
+			"Isidore Dantas",
 			"The Discoverer"
 		]
 	},
-	"browse": "Wikint bhovdi mar"
+	"smw-categories": "Vorg",
+	"browse": "Wikint bhovdi mar",
+	"smw-listingcontinuesabbrev": "chalu"
 }

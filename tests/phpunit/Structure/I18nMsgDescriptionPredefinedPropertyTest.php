@@ -8,12 +8,12 @@ use SMW\TypesRegistry;
  * @group semantic-mediawiki
  * @group system-test
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.2
  *
  * @author mwjames
  */
-class I18nMsgDescriptionPredefinedPropertyTest extends \PHPUnit_Framework_TestCase {
+class I18nMsgDescriptionPredefinedPropertyTest extends \PHPUnit\Framework\TestCase {
 
 	const MSG_KEY_PREFIX = 'smw-property-predefined';
 
@@ -21,11 +21,10 @@ class I18nMsgDescriptionPredefinedPropertyTest extends \PHPUnit_Framework_TestCa
 	 * @dataProvider predefinePropertiesProvider
 	 */
 	public function testCheckPredefinedPropertyDesriptionKey( $key ) {
-
-		$contents = json_decode(
-			file_get_contents( $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] . '/en.json' ),
-			true
-		);
+		$i18nDir = !is_array( $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] )
+				 ? $GLOBALS['wgMessagesDirs']['SemanticMediaWiki']
+				 : $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'][0];
+		$contents = json_decode( file_get_contents( $i18nDir . '/en.json' ), true );
 
 		$msgKey = self::MSG_KEY_PREFIX . (
 			str_replace( '_', '-', strtolower( $key ) )

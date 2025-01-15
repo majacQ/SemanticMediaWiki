@@ -8,18 +8,17 @@ use SMW\Tests\Utils\UtilityFactory;
  * @group semantic-mediawiki
  * @group system-test
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.0
  *
  * @author mwjames
  */
-class I18nMsgKeyIntegrityTest extends \PHPUnit_Framework_TestCase {
+class I18nMsgKeyIntegrityTest extends \PHPUnit\Framework\TestCase {
 
 	/**
 	 * @dataProvider mediawikiI18nFileProvider
 	 */
 	public function testDecKiloSeparatorMsgKeySetting( $file ) {
-
 		$jsonFileReader = UtilityFactory::getInstance()->newJsonFileReader( $file );
 		$contents = $jsonFileReader->read();
 
@@ -35,7 +34,8 @@ class I18nMsgKeyIntegrityTest extends \PHPUnit_Framework_TestCase {
 
 		$this->assertTrue(
 			$isComplete,
-			'Failed on ' . basename( $file ) . ' with an incomplete pair of smw_decseparator/smw_kiloseparator.'
+			'Failed on ' . basename( $file ) . ' with an incomplete pair of '
+			. 'smw_decseparator/smw_kiloseparator.'
 		);
 	}
 
@@ -43,7 +43,6 @@ class I18nMsgKeyIntegrityTest extends \PHPUnit_Framework_TestCase {
 	 * @dataProvider mediawikiI18nFileProvider
 	 */
 	public function testDecKiloSeparatorHasDifferentValue( $file ) {
-
 		$jsonFileReader = UtilityFactory::getInstance()->newJsonFileReader( $file );
 		$contents = $jsonFileReader->read();
 
@@ -56,16 +55,19 @@ class I18nMsgKeyIntegrityTest extends \PHPUnit_Framework_TestCase {
 
 		$this->assertTrue(
 			$hasDifferentSeparatorValue,
-			'Failed on ' . basename( $file ) . ' where smw_decseparator/smw_kiloseparator have the same set of values.'
+			'Failed on ' . basename( $file ) . ' where smw_decseparator/smw_kiloseparator have the '
+			. 'same set of values.'
 		);
 	}
 
 	public function mediawikiI18nFileProvider() {
-		return $this->findFilesIn( $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] );
+		$i18nDir = !is_array( $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] )
+				 ? $GLOBALS['wgMessagesDirs']['SemanticMediaWiki']
+				 : $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'][0];
+		return $this->findFilesIn( $i18nDir );
 	}
 
 	private function findFilesIn( $location ) {
-
 		$provider = [];
 
 		$bulkFileProvider = UtilityFactory::getInstance()->newBulkFileProvider( $location );

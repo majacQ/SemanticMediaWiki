@@ -16,6 +16,7 @@
 	"smw_printername_templatefile": "Файли шаблон",
 	"smw_printername_category": "Гурӯҳ",
 	"validator-type-class-SMWParamSource": "матн",
+	"smw-categories": "Гурӯҳҳо",
 	"smw_propertylackspage": "Ҳамаи хусусиятҳо бояд саҳифаи тавзеҳоти худро дошта бошанд.",
 	"smw-special-property-searchform-options": "Ихтиёрот",
 	"smw-special-wantedproperties-filter-label": "Филтр:",
@@ -56,5 +57,7 @@
 	"smw-type-tab-properties": "Хусусиятҳо",
 	"smw-format-datatable-search": "Ҷустуҷӯ:",
 	"smw-format-datatable-toolbar-export": "Берунбарӣ",
-	"smw-schema-summary-title": "Хулоса"
+	"smw-schema-summary-title": "Хулоса",
+	"smw-listingcontinuesabbrev": "идома",
+	"smw-showingresults": "Намоиши {{PLURAL:$1|'''1''' натиҷа|'''$1''' натоиҷ}} дар зер оғоз аз #'''$2'''."
 }

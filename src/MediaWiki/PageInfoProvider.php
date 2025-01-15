@@ -2,10 +2,16 @@
 
 namespace SMW\MediaWiki;
 
-use Revision;
+use IDBAccessObject;
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Permissions\RestrictionStore;
+use MediaWiki\Revision\RevisionLookup;
+use MediaWiki\Revision\RevisionRecord;
 use SMW\PageInfo;
+use SMW\Schema\Content\Content;
 use Title;
 use User;
+use WikiFilePage;
 use WikiPage;
 
 /**
@@ -14,7 +20,7 @@ use WikiPage;
  *
  * @ingroup SMW
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9
  *
  * @author mwjames
@@ -29,7 +35,7 @@ class PageInfoProvider implements PageInfo {
 	private $wikiPage = null;
 
 	/**
-	 * @var Revision
+	 * @var RevisionRecord
 	 */
 	private $revision = null;
 
@@ -39,13 +45,22 @@ class PageInfoProvider implements PageInfo {
 	private $user = null;
 
 	/**
+	 * @var RevisionLookup
+	 */
+	private $revisionLookup;
+
+	/**
 	 * @since 1.9
 	 *
 	 * @param WikiPage $wikiPage
-	 * @param Revision|null $revision
-	 * @param User|null $user
+	 * @param ?RevisionRecord $revision
+	 * @param ?User $user
 	 */
-	public function __construct( WikiPage $wikiPage, Revision $revision = null, User $user = null ) {
+	public function __construct(
+		WikiPage $wikiPage,
+		?RevisionRecord $revision = null,
+		?User $user = null
+	) {
 		$this->wikiPage = $wikiPage;
 		$this->revision = $revision;
 		$this->user = $user;
@@ -54,7 +69,7 @@ class PageInfoProvider implements PageInfo {
 	/**
 	 * @since 1.9
 	 *
-	 * @return integer
+	 * @return int
 	 */
 	public function getModificationDate() {
 		return $this->wikiPage->getTimestamp();
@@ -66,18 +81,13 @@ class PageInfoProvider implements PageInfo {
 	 *
 	 * @since 1.9
 	 *
-	 * @return integer
+	 * @return int
 	 */
 	public function getCreationDate() {
-		// MW 1.34+
-		// https://github.com/wikimedia/mediawiki/commit/b65e77a385c7423ce03a4d21c141d96c28291a60
-		if ( defined( 'Title::READ_LATEST' ) && Title::GAID_FOR_UPDATE == 512 ) {
-			$flag = Title::READ_LATEST;
-		} else {
-			$flag = Title::GAID_FOR_UPDATE;
-		}
-
-		return $this->wikiPage->getTitle()->getFirstRevision( $flag )->getTimestamp();
+		return $this->revisionLookup->getFirstRevision(
+			$this->wikiPage->getTitle(),
+			IDBAccessObject::READ_LATEST
+		)->getTimestamp();
 	}
 
 	/**
@@ -85,23 +95,17 @@ class PageInfoProvider implements PageInfo {
 	 *
 	 * @since 1.9
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isNewPage() {
-
 		if ( $this->isFilePage() ) {
 			return isset( $this->wikiPage->smwFileReUploadStatus ) ? !$this->wikiPage->smwFileReUploadStatus : false;
 		}
 
-		if ( $this->revision ) {
-			return $this->revision->getParentId() === null;
-		}
+		$revision = $this->revision ??
+			$this->revisionGuard->newRevisionFromPage( $this->wikiPage );
 
-		$revision = $this->revisionGuard->newRevisionFromPage(
-			$this->wikiPage
-		);
-
-		return $revision->getParentId() === null;
+		return $revision->getParentId() === 0;
 	}
 
 	/**
@@ -116,10 +120,10 @@ class PageInfoProvider implements PageInfo {
 	/**
 	 * @since 1.9.1
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isFilePage() {
-		return $this->wikiPage instanceof \WikiFilePage;
+		return $this->wikiPage instanceof WikiFilePage;
 	}
 
 	/**
@@ -128,14 +132,13 @@ class PageInfoProvider implements PageInfo {
 	 * @return text
 	 */
 	public function getNativeData() {
-
 		if ( $this->wikiPage->getContent() === null ) {
 			return '';
 		}
 
 		$content = $this->wikiPage->getContent();
 
-		if ( $content instanceof \SMW\Schema\Content\Content ) {
+		if ( $content instanceof Content ) {
 			return $content->toJson();
 		}
 
@@ -148,7 +151,6 @@ class PageInfoProvider implements PageInfo {
 	 * @return string|null
 	 */
 	public function getMediaType() {
-
 		if ( $this->isFilePage() === false ) {
 			return null;
 		}
@@ -162,12 +164,29 @@ class PageInfoProvider implements PageInfo {
 	 * @return string|null
 	 */
 	public function getMimeType() {
-
 		if ( $this->isFilePage() === false ) {
 			return null;
 		}
 
 		return $this->wikiPage->getFile()->getMimeType();
+	}
+
+	/**
+	 * @since 4.0
+	 */
+	public function setRevisionLookup( RevisionLookup $revisionLookup ) {
+		$this->revisionLookup = $revisionLookup;
+	}
+
+	public static function isProtected( Title $title, string $action = '' ) {
+		if ( method_exists( RestrictionStore::class, 'isProtected' ) ) {
+			return MediaWikiServices::getInstance()->getRestrictionStore()->isProtected(
+				$title, $action
+			);
+		}
+
+		// MW < 1.37
+		return $title->isProtected( $action );
 	}
 
 }

@@ -2,13 +2,15 @@
 
 namespace SMW;
 
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\SlotRecord;
 use Parser;
 use ParserOptions;
-use Revision;
+use RequestContext;
+use SMW\MediaWiki\RevisionGuardAwareTrait;
 use Title;
 use User;
-use SMW\MediaWiki\RevisionGuard;
-use SMW\MediaWiki\RevisionGuardAwareTrait;
 
 /**
  * Fetches the ParserOutput either by parsing an invoked text component,
@@ -17,7 +19,7 @@ use SMW\MediaWiki\RevisionGuardAwareTrait;
  *
  * @ingroup SMW
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9
  *
  * @author mwjames
@@ -35,14 +37,14 @@ class ContentParser {
 	/** @var ParserOutput */
 	protected $parserOutput = null;
 
-	/** @var Revision */
+	/** @var RevisionRecord */
 	protected $revision = null;
 
 	/** @var array */
 	protected $errors = [];
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $skipInTextAnnotationParser = false;
 
@@ -71,7 +73,7 @@ class ContentParser {
 	 *
 	 * @return ContentParser
 	 */
-	public function setRevision( Revision $revision = null ) {
+	public function setRevision( ?RevisionRecord $revision = null ) {
 		$this->revision = $revision;
 		return $this;
 	}
@@ -120,7 +122,6 @@ class ContentParser {
 	 * @return ContentParser
 	 */
 	public function parse( $text = null ) {
-
 		if ( $text !== null ) {
 			return $this->parseText( $text );
 		}
@@ -129,7 +130,6 @@ class ContentParser {
 	}
 
 	private function parseText( $text ) {
-
 		$this->parserOutput = $this->parser->parse(
 			$text,
 			$this->getTitle(),
@@ -140,27 +140,34 @@ class ContentParser {
 	}
 
 	private function fetchFromContent() {
-
 		if ( $this->getRevision() === null ) {
 			return $this->msgForNullRevision();
 		}
 
 		$revision = $this->getRevision();
-		$content = $revision->getContent( Revision::RAW );
+		$content = $revision->getContent( SlotRecord::MAIN, RevisionRecord::RAW );
 
 		if ( !$content ) {
-			$content = $revision->getContentHandler()->makeEmptyContent();
+			$mainSlot = $revision->getSlot( SlotRecord::MAIN, RevisionRecord::RAW );
+			$contentHandlerFactory = MediaWikiServices::getInstance()->getContentHandlerFactory();
+			$handler = $contentHandlerFactory->getContentHandler( $mainSlot->getModel() );
+			$content = $handler->makeEmptyContent();
 		}
 
 		// Avoid "The content model 'xyz' is not registered on this wiki."
 		try {
-			$this->parserOutput = $content->getParserOutput(
+			$services = MediaWikiServices::getInstance();
+			// MW 1.42+
+			if ( version_compare( MW_VERSION, '1.42', '<' ) ) {
+				$revision = $revision->getId();
+			}
+			$contentRenderer = $services->getContentRenderer();
+			$this->parserOutput = $contentRenderer->getParserOutput(
+				$content,
 				$this->getTitle(),
-				$revision->getId(),
-				null,
-				true
+				$revision
 			);
-		} catch( \MWUnknownContentModelException $e ) {
+		} catch ( \MWUnknownContentModelException $e ) {
 			$this->parserOutput = null;
 		}
 
@@ -173,13 +180,16 @@ class ContentParser {
 	}
 
 	private function makeParserOptions() {
-
 		$user = null;
 
 		if ( $this->getRevision() !== null ) {
-			$user = User::newFromId( $this->getRevision()->getUser() );
+			$identity = $this->getRevision()->getUser();
+			if ( $identity ) {
+				$user = User::newFromIdentity( $identity );
+			}
 		}
 
+		$user = $user ?? RequestContext::getMain()->getUser();
 		$parserOptions = new ParserOptions( $user );
 
 		// Use the InterfaceMessage marker to skip InTextAnnotationParser
@@ -190,8 +200,7 @@ class ContentParser {
 	}
 
 	private function getRevision() {
-
-		if ( $this->revision instanceof Revision ) {
+		if ( $this->revision instanceof RevisionRecord ) {
 			return $this->revision;
 		}
 

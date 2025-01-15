@@ -3,24 +3,25 @@
 namespace SMW\Tests\Utils\JSONScript;
 
 use FauxRequest;
-use Language;
+use MediaWiki\MediaWikiServices;
+use MediaWikiIntegrationTestCase;
 use OutputPage;
 use RequestContext;
 use SMW\Tests\Utils\File\ContentsReader;
 use SMW\Tests\Utils\Mock\MockSuperUser;
 use SpecialPage;
-use SpecialPageFactory;
 
 /**
  * @group semantic-mediawiki
+ * @group Database
  * @group medium
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.4
  *
  * @author mwjames
  */
-class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
+class SpecialPageTestCaseProcessor extends MediaWikiIntegrationTestCase {
 
 	/**
 	 * @var Store
@@ -33,7 +34,7 @@ class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
 	private $stringValidator;
 
 	/**
-	 * @var boolean
+	 * @var bool
 	 */
 	private $debug = false;
 
@@ -73,7 +74,6 @@ class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
 	 * @param array $case
 	 */
 	public function process( array $case ) {
-
 		if ( !isset( $case['special-page'] ) ) {
 			return;
 		}
@@ -85,7 +85,7 @@ class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
 		}
 
 		$text = $this->getTextForRequestBy(
-			SpecialPageFactory::getPage( $case['special-page']['page'] ),
+			MediaWikiServices::getInstance()->getSpecialPageFactory()->getPage( $case['special-page']['page'] ),
 			new FauxRequest( $case['special-page']['request-parameters'] ),
 			$queryParameters
 		);
@@ -135,7 +135,6 @@ class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
 	}
 
 	private function assertOutputForCase( $case, $text ) {
-
 		// Avoid issue with \r carriage return and \n new line
 		$text = str_replace( "\r\n", "\n", $text );
 
@@ -178,6 +177,7 @@ class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
 	 * @return RequestContext
 	 */
 	private function makeRequestContext( \WebRequest $request, $user, $title ) {
+		$languageFactory = MediaWikiServices::getInstance()->getLanguageFactory();
 
 		$context = new RequestContext();
 		$context->setRequest( $request );
@@ -186,7 +186,7 @@ class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
 		$out->setTitle( $title );
 
 		$context->setOutput( $out );
-		$context->setLanguage( Language::factory( $GLOBALS['wgLanguageCode'] ) );
+		$context->setLanguage( $languageFactory->getLanguage( $GLOBALS['wgLanguageCode'] ) );
 
 		$user = $user === null ? new MockSuperUser() : $user;
 		$context->setUser( $user );
@@ -200,7 +200,7 @@ class SpecialPageTestCaseProcessor extends \PHPUnit_Framework_TestCase {
 	 * @return Title
 	 */
 	private function getTitle( SpecialPage $page ) {
-		return method_exists( $page, 'getPageTitle') ? $page->getPageTitle() : $page->getTitle();
+		return method_exists( $page, 'getPageTitle' ) ? $page->getPageTitle() : $page->getTitle();
 	}
 
 }

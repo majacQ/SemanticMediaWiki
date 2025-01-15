@@ -5,7 +5,7 @@ namespace SMW\Tests\Utils\File;
 use SMW\Exception\JSONFileParseException;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.1
  *
  * @author mwjames
@@ -27,8 +27,8 @@ class JsonFileReader {
 	 *
 	 * @param string|null $file
 	 */
-	public function __construct( $file = null ) {
-		$this->setFile( $file );
+	public function __construct( ?string $file = null ) {
+		$this->setFile( $file ?? '' );
 	}
 
 	/**
@@ -36,7 +36,7 @@ class JsonFileReader {
 	 *
 	 * @param string $file
 	 */
-	public function setFile( $file ) {
+	public function setFile( string $file ) {
 		$this->file = str_replace( [ '\\', '/' ], DIRECTORY_SEPARATOR, $file );
 		$this->contents = null;
 	}
@@ -48,7 +48,6 @@ class JsonFileReader {
 	 * @throws RuntimeException
 	 */
 	public function read() {
-
 		if ( $this->contents === null && $this->isReadable() ) {
 			$this->contents = $this->parse( $this->file );
 		}
@@ -63,7 +62,7 @@ class JsonFileReader {
 	/**
 	 * @since 2.1
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isReadable() {
 		return is_file( $this->file ) && is_readable( $this->file );
@@ -72,11 +71,10 @@ class JsonFileReader {
 	/**
 	 * @since 2.1
 	 *
-	 * @return integer
+	 * @return int
 	 * @throws RuntimeException
 	 */
 	public function getModificationTime() {
-
 		if ( $this->isReadable() ) {
 			return filemtime( $this->file );
 		}
@@ -85,13 +83,12 @@ class JsonFileReader {
 	}
 
 	private function parse( $file ) {
-
 		$json = file_get_contents( $file );
 
 		$json = preg_replace(
 			'~ ("(?:[^\\\"]+|\\\.)*") |' . // preserve strings
-			'/\* (?:[^*]+|\*+(?!/))* \*/ |' .      // strip multi-line comments
-			'//\V* ~sx',                           // strip //-comments
+			'/\* (?:[^*]+|\*+(?!/))* \*/ |' . // strip multi-line comments
+			'//\V* ~sx', // strip //-comments
 			'$1', $json );
 
 		$contents = json_decode( $json, true );

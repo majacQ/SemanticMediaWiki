@@ -2,11 +2,10 @@
 
 namespace SMW\Tests\Utils\File;
 
-use RuntimeException;
 use SMW\Utils\FileFetcher;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.1
  *
  * @author mwjames
@@ -28,7 +27,7 @@ class BulkFileProvider {
 	 *
 	 * @param string $path
 	 */
-	public function __construct( $path ) {
+	public function __construct( string $path ) {
 		$this->path = $path;
 	}
 
@@ -47,7 +46,6 @@ class BulkFileProvider {
 	 * @return array
 	 */
 	public function getFiles() {
-
 		$fileFetcher = new FileFetcher( $this->path );
 		$iterator = $fileFetcher->findByExtension( $this->extension );
 
@@ -55,7 +53,7 @@ class BulkFileProvider {
 
 		foreach ( $iterator as $file => $value ) {
 			$fileInfo = pathinfo( $file );
-			$files[$fileInfo['filename'] . ' (' . substr( md5( $file ), 0, 5 ) .')'] = $file;
+			$files[$fileInfo['filename'] . ' (' . substr( md5( $file ), 0, 5 ) . ')'] = $file;
 		}
 
 		asort( $files );

@@ -3,16 +3,16 @@
 namespace SMW;
 
 use Html;
+use SMW\DataValues\TypesValue;
 use SMW\Exception\PropertyNotFoundException;
 use SMWDIError;
-use SMWTypesValue;
 
 /**
  * Query page that provides content to Special:UnusedProperties
  *
  * @ingroup QueryPage
  *
- * @licence GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9
  *
  * @author Markus Krötzsch
@@ -52,7 +52,7 @@ class UnusedPropertiesQueryPage extends QueryPage {
 
 	/**
 	 * @codeCoverageIgnore
-	 * @return boolean
+	 * @return bool
 	 */
 	function isExpensive() {
 		return false; // Disables caching for now
@@ -60,7 +60,7 @@ class UnusedPropertiesQueryPage extends QueryPage {
 
 	/**
 	 * @codeCoverageIgnore
-	 * @return boolean
+	 * @return bool
 	 */
 	function isSyndicated() {
 		return false; // TODO: why not?
@@ -75,9 +75,11 @@ class UnusedPropertiesQueryPage extends QueryPage {
 	 * @return string
 	 */
 	public function getCacheInfo() {
-
 		if ( $this->listLookup->isFromCache() ) {
-			return $this->msg( 'smw-sp-properties-cache-info', $this->getLanguage()->userTimeAndDate( $this->listLookup->getTimestamp(), $this->getUser() ) )->parse();
+			return $this->msg(
+				'smw-sp-properties-cache-info',
+				$this->getLanguage()->userTimeAndDate( $this->listLookup->getTimestamp(), $this->getUser() )
+			)->parse();
 		}
 
 		return '';
@@ -88,12 +90,11 @@ class UnusedPropertiesQueryPage extends QueryPage {
 	 * @return string
 	 */
 	function getPageHeader() {
-
 		return Html::rawElement(
 			'p',
 			[ 'class' => 'smw-unusedproperties-docu' ],
 			$this->msg( 'smw-unusedproperties-docu' )->parse()
-		) . $this->getSearchForm( $this->getRequest()->getVal( 'property' ), $this->getCacheInfo() ) .
+		) . $this->getSearchForm( $this->getRequest()->getVal( 'property', '' ), $this->getCacheInfo() ) .
 		Html::element(
 			'h2',
 			[],
@@ -109,11 +110,10 @@ class UnusedPropertiesQueryPage extends QueryPage {
 	 * @param Skin $skin provided by MediaWiki, not needed here
 	 * @param mixed $result
 	 *
-	 * @return String
+	 * @return string
 	 * @throws InvalidResultException if the result was not of a supported type
 	 */
 	function formatResult( $skin, $result ) {
-
 		if ( $result instanceof DIProperty ) {
 			return $this->formatPropertyItem( $result );
 		} elseif ( $result instanceof SMWDIError ) {
@@ -123,7 +123,9 @@ class UnusedPropertiesQueryPage extends QueryPage {
 				->getHtml();
 		}
 
-		throw new PropertyNotFoundException( 'UnusedPropertiesQueryPage expects results that are properties or errors.' );
+		throw new PropertyNotFoundException(
+			'UnusedPropertiesQueryPage expects results that are properties or errors.'
+		);
 	}
 
 	/**
@@ -137,7 +139,6 @@ class UnusedPropertiesQueryPage extends QueryPage {
 	 * @return string
 	 */
 	protected function formatPropertyItem( DIProperty $property ) {
-
 		// Clear formatter before invoking messages and
 		// avoid having previous data to be present
 		$this->getMessageFormatter()->clear();
@@ -155,22 +156,29 @@ class UnusedPropertiesQueryPage extends QueryPage {
 				$property->getLabel()
 			);
 
-			$types = $this->store->getPropertyValues( $property->getDiWikiPage(), new DIProperty( '_TYPE' ) );
+			$types = $this->store->getPropertyValues(
+				$property->getDiWikiPage(), new DIProperty( '_TYPE' )
+			);
 
 			if ( is_array( $types ) && count( $types ) >= 1 ) {
-				$typeDataValue = DataValueFactory::getInstance()->newDataValueByItem( current( $types ), new DIProperty( '_TYPE' ) );
+				$typeDataValue = DataValueFactory::getInstance()
+							   ->newDataValueByItem( current( $types ), new DIProperty( '_TYPE' ) );
 			} else {
-				$typeDataValue = SMWTypesValue::newFromTypeId( '_wpg' );
-				$this->getMessageFormatter()->addFromKey( 'smw_propertylackstype', $typeDataValue->getLongHTMLText() );
+				$typeDataValue = TypesValue::newFromTypeId( '_wpg' );
+				$this->getMessageFormatter()
+					 ->addFromKey( 'smw_propertylackstype', $typeDataValue->getLongHTMLText() );
 			}
 
 		} else {
-			$typeDataValue = SMWTypesValue::newFromTypeId( $property->findPropertyTypeID() );
-			$propertyLink  = DataValueFactory::getInstance()->newDataValueByItem( $property, null )->getShortHtmlText( $this->getLinker() );
+			$typeDataValue = TypesValue::newFromTypeId( $property->findPropertyTypeID() );
+			$propertyLink  = DataValueFactory::getInstance()
+						   ->newDataValueByItem( $property, null )->getShortHtmlText( $this->getLinker() );
 		}
 
-		return $this->msg( 'smw-unusedproperty-template', $propertyLink, $typeDataValue->getLongHTMLText( $this->getLinker() )	)->text() . ' ' .
-			$this->getMessageFormatter()->getHtml();
+		return $this->msg(
+			'smw-unusedproperty-template', $propertyLink,
+			$typeDataValue->getLongHTMLText( $this->getLinker() )
+		)->text() . ' ' . $this->getMessageFormatter()->getHtml();
 	}
 
 	/**

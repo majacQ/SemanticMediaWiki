@@ -3,64 +3,60 @@
 namespace SMW\MediaWiki;
 
 use IContextSource;
-use Onoi\HttpRequest\HttpRequestFactory;
-use Parser;
-use SMW\ApplicationFactory;
-use SMW\MediaWiki\Search\ProfileForm\ProfileForm;
-use SMW\NamespaceManager;
-use SMW\SemanticData;
-use SMW\Setup;
-use SMW\Site;
-use SMW\SQLStore\QueryDependencyLinksStoreFactory;
-use SMW\SQLStore\QueryEngine\FulltextSearchTableFactory;
+use MediaWiki\HookContainer\HookContainer;
+use MediaWiki\Linker\LinkTarget;
+use MediaWiki\MediaWikiServices;
+use MediaWiki\User\UserIdentity;
 use ParserHooks\HookRegistrant;
 use SMW\DataTypeRegistry;
-use SMW\ParserFunctions\DocumentationParserFunction;
-use SMW\ParserFunctions\InfoParserFunction;
-use SMW\ParserFunctions\SectionTag;
-use SMW\SetupFile;
-use SMW\Store;
-use SMW\Options;
+use SMW\MediaWiki\Hooks\AdminLinks;
+use SMW\MediaWiki\Hooks\ApiModuleManager;
 use SMW\MediaWiki\Hooks\ArticleDelete;
 use SMW\MediaWiki\Hooks\ArticleFromTitle;
 use SMW\MediaWiki\Hooks\ArticleProtectComplete;
 use SMW\MediaWiki\Hooks\ArticlePurge;
 use SMW\MediaWiki\Hooks\ArticleViewHeader;
-use SMW\MediaWiki\Hooks\BaseTemplateToolbox;
 use SMW\MediaWiki\Hooks\BeforeDisplayNoArticleText;
 use SMW\MediaWiki\Hooks\BeforePageDisplay;
+use SMW\MediaWiki\Hooks\DeleteAccount;
 use SMW\MediaWiki\Hooks\EditPageForm;
 use SMW\MediaWiki\Hooks\ExtensionSchemaUpdates;
 use SMW\MediaWiki\Hooks\ExtensionTypes;
 use SMW\MediaWiki\Hooks\FileUpload;
 use SMW\MediaWiki\Hooks\GetPreferences;
 use SMW\MediaWiki\Hooks\InternalParseBeforeLinks;
-use SMW\MediaWiki\Hooks\LinksUpdateConstructed;
-use SMW\MediaWiki\Hooks\NewRevisionFromEditComplete;
+use SMW\MediaWiki\Hooks\LinksUpdateComplete;
 use SMW\MediaWiki\Hooks\OutputPageParserOutput;
+use SMW\MediaWiki\Hooks\PageMoveComplete;
 use SMW\MediaWiki\Hooks\ParserAfterTidy;
 use SMW\MediaWiki\Hooks\PersonalUrls;
 use SMW\MediaWiki\Hooks\RejectParserCacheValue;
 use SMW\MediaWiki\Hooks\ResourceLoaderGetConfigVars;
-use SMW\MediaWiki\Hooks\ResourceLoaderTestModules;
+use SMW\MediaWiki\Hooks\RevisionFromEditComplete;
 use SMW\MediaWiki\Hooks\SidebarBeforeOutput;
 use SMW\MediaWiki\Hooks\SkinAfterContent;
-use SMW\MediaWiki\Hooks\SkinTemplateNavigation;
+use SMW\MediaWiki\Hooks\SkinTemplateNavigationUniversal;
 use SMW\MediaWiki\Hooks\SpecialSearchResultsPrepend;
 use SMW\MediaWiki\Hooks\SpecialStatsAddExtra;
 use SMW\MediaWiki\Hooks\TitleIsAlwaysKnown;
 use SMW\MediaWiki\Hooks\TitleIsMovable;
-use SMW\MediaWiki\Hooks\TitleMoveComplete;
 use SMW\MediaWiki\Hooks\TitleQuickPermissions;
 use SMW\MediaWiki\Hooks\UserChange;
-use SMW\MediaWiki\Hooks\DeleteAccount;
-use SMW\MediaWiki\Hooks\AdminLinks;
-use SMW\MediaWiki\Hooks\SpecialPageList;
-use SMW\MediaWiki\Hooks\ApiModuleManager;
-use SMW\Maintenance\RunImport;
+use SMW\MediaWiki\Search\ProfileForm\ProfileForm;
+use SMW\NamespaceManager;
+use SMW\ParserFunctions\DocumentationParserFunction;
+use SMW\ParserFunctions\InfoParserFunction;
+use SMW\ParserFunctions\SectionTag;
+use SMW\SemanticData;
+use SMW\Services\ServicesFactory as ApplicationFactory;
+use SMW\SetupFile;
+use SMW\Site;
+use SMW\SQLStore\QueryEngine\FulltextSearchTableFactory;
+use SMW\Store;
+use User;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.1
  *
  * @author mwjames
@@ -72,18 +68,14 @@ class Hooks {
 	 */
 	private $handlers = [];
 
-	/**
-	 * @var string
-	 */
-	private $localDirectory;
+	/** @var HookContainer */
+	private $hookContainer;
 
 	/**
 	 * @since 2.1
-	 *
-	 * @param string $localDirectory
 	 */
-	public function __construct( $localDirectory = '' ) {
-		$this->localDirectory = $localDirectory;
+	public function __construct() {
+		$this->hookContainer = MediaWikiServices::getInstance()->getHookContainer();
 		$this->registerHandlers();
 	}
 
@@ -92,10 +84,9 @@ class Hooks {
 	 *
 	 * @param string $name
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isRegistered( $name ) {
-		// return \Hooks::isRegistered( $name );
 		return isset( $this->handlers[$name] );
 	}
 
@@ -105,7 +96,6 @@ class Hooks {
 	 * @param string $name
 	 */
 	public function clear( string $name = '' ) {
-
 		if ( !defined( 'MW_PHPUNIT_TEST' ) ) {
 			return;
 		}
@@ -117,15 +107,7 @@ class Hooks {
 		}
 
 		foreach ( $handlers as $name ) {
-
-			// #4779
-			if (
-				!class_exists( '\MediaWiki\MediaWikiServices' ) ||
-				!method_exists( \MediaWiki\MediaWikiServices::getInstance(), 'getHookContainer' ) ) {
-				\Hooks::clear( $name );
-			} else {
-				\MediaWiki\MediaWikiServices::getInstance()->getHookContainer()->clear( $name );
-			}
+			$this->hookContainer->clear( $name );
 		}
 	}
 
@@ -134,7 +116,7 @@ class Hooks {
 	 *
 	 * @param string $name
 	 *
-	 * @return Callable|false
+	 * @return callable|false
 	 */
 	public function getHandlerFor( $name ) {
 		return isset( $this->handlers[$name] ) ? $this->handlers[$name] : false;
@@ -152,10 +134,9 @@ class Hooks {
 	/**
 	 * @since 2.1
 	 */
-	public function register( &$vars ) {
+	public function register() {
 		foreach ( $this->handlers as $name => $callback ) {
-			//\Hooks::register( $name, $callback );
-			$vars['wgHooks'][$name][] = $callback;
+			$this->hookContainer->register( $name, $callback );
 		}
 	}
 
@@ -168,9 +149,7 @@ class Hooks {
 	 * @param array &$vars
 	 */
 	public static function registerExtensionCheck( array &$vars ) {
-
-		$vars['wgHooks']['BeforePageDisplay']['smw-extension-check'] = function( $outputPage ) {
-
+		$vars['wgHooks']['BeforePageDisplay']['smw-extension-check'] = static function ( $outputPage ) {
 			$beforePageDisplay = new BeforePageDisplay();
 
 			$beforePageDisplay->setOptions(
@@ -190,86 +169,58 @@ class Hooks {
 	}
 
 	/**
+	 * CanonicalNamespaces initialization
+	 *
+	 * @note According to T104954 registration via wgExtensionFunctions can be
+	 * too late and should happen before that in case RequestContext::getLanguage
+	 * invokes Language::getNamespaces before the `wgExtensionFunctions` execution.
+	 *
+	 * @see https://phabricator.wikimedia.org/T104954#2391291
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/CanonicalNamespaces
+	 * @Bug 34383
+	 */
+	public static function onCanonicalNamespaces( array &$namespaces ) {
+		NamespaceManager::initCanonicalNamespaces(
+			$namespaces
+		);
+
+		return true;
+	}
+
+	/**
+	 * Called when ApiMain has finished initializing its module manager. Can
+	 * be used to conditionally register API modules.
+	 *
+	 * #2813
+	 */
+	public static function onApiModuleManager( $moduleManager ) {
+		$apiModuleManager = new ApiModuleManager();
+		$apiModuleManager->setOptions(
+			[
+				'SMW_EXTENSION_LOADED' => defined( 'SMW_EXTENSION_LOADED' )
+			]
+		);
+
+		$apiModuleManager->process( $moduleManager );
+
+		return true;
+	}
+
+	/**
 	 * @since 3.0
 	 *
 	 * @param array &$vars
 	 */
 	public static function registerEarly( array &$vars ) {
-
 		// Remove the hook registered via `Hook::registerExtensionCheck` given
 		// that at this point we know the extension was loaded and hereby is
 		// available.
 		if ( defined( 'SMW_EXTENSION_LOADED' ) ) {
 			unset( $vars['wgHooks']['BeforePageDisplay']['smw-extension-check'] );
 		}
-
-		$vars['wgContentHandlers'][CONTENT_MODEL_SMW_SCHEMA] = 'SMW\MediaWiki\Content\SchemaContentHandler';
-
-		/**
-		 * CanonicalNamespaces initialization
-		 *
-		 * @note According to T104954 registration via wgExtensionFunctions can be
-		 * too late and should happen before that in case RequestContext::getLanguage
-		 * invokes Language::getNamespaces before the `wgExtensionFunctions` execution.
-		 *
-		 * @see https://phabricator.wikimedia.org/T104954#2391291
-		 * @see https://www.mediawiki.org/wiki/Manual:Hooks/CanonicalNamespaces
-		 * @Bug 34383
-		 */
-		$vars['wgHooks']['CanonicalNamespaces'][] = function( array &$namespaces ) {
-
-			NamespaceManager::initCanonicalNamespaces(
-				$namespaces
-			);
-
-			return true;
-		};
-
-		/**
-		 * To add to or remove pages from the special page list. This array has
-		 * the same structure as $wgSpecialPages.
-		 *
-		 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SpecialPage_initList
-		 *
-		 * #2813
-		 */
-		$vars['wgHooks']['SpecialPage_initList'][] = function( array &$specialPages ) {
-
-			$specialPageList = new SpecialPageList();
-			$specialPageList->setOptions(
-				[
-					'SMW_EXTENSION_LOADED' => defined( 'SMW_EXTENSION_LOADED' )
-				]
-			);
-
-			$specialPageList->process( $specialPages );
-
-			return true;
-		};
-
-		/**
-		 * Called when ApiMain has finished initializing its module manager. Can
-		 * be used to conditionally register API modules.
-		 *
-		 * #2813
-		 */
-		$vars['wgHooks']['ApiMain::moduleManager'][] = function( $moduleManager ) {
-
-			$apiModuleManager = new ApiModuleManager();
-			$apiModuleManager->setOptions(
-				[
-					'SMW_EXTENSION_LOADED' => defined( 'SMW_EXTENSION_LOADED' )
-				]
-			);
-
-			$apiModuleManager->process( $moduleManager );
-
-			return true;
-		};
 	}
 
 	private function registerHandlers() {
-
 		$elasticFactory = ApplicationFactory::getInstance()->singleton( 'ElasticFactory' );
 
 		$this->handlers = $elasticFactory->newHooks()->getHandlers();
@@ -281,7 +232,6 @@ class Hooks {
 			'InternalParseBeforeLinks' => [ $this, 'onInternalParseBeforeLinks' ],
 			'RejectParserCacheValue' => [ $this, 'onRejectParserCacheValue' ],
 
-			'BaseTemplateToolbox' => [ $this, 'onBaseTemplateToolbox' ],
 			'SkinAfterContent' => [ $this, 'onSkinAfterContent' ],
 			'OutputPageParserOutput' => [ $this, 'onOutputPageParserOutput' ],
 			'OutputPageCheckLastModified' => [ $this, 'onOutputPageCheckLastModified' ],
@@ -289,7 +239,7 @@ class Hooks {
 			'BeforeDisplayNoArticleText' => [ $this, 'onBeforeDisplayNoArticleText' ],
 			'EditPage::showEditForm:initial' => [ $this, 'onEditPageShowEditFormInitial' ],
 
-			'TitleMoveComplete' => [ $this, 'onTitleMoveComplete' ],
+			'PageMoveComplete' => [ $this, 'onPageMoveComplete' ],
 			'TitleIsAlwaysKnown' => [ $this, 'onTitleIsAlwaysKnown' ],
 			'TitleQuickPermissions' => [ $this, 'onTitleQuickPermissions' ],
 			'TitleIsMovable' => [ $this, 'onTitleIsMovable' ],
@@ -301,16 +251,14 @@ class Hooks {
 			'ArticleViewHeader' => [ $this, 'onArticleViewHeader' ],
 			'ContentHandlerForModelID' => [ $this, 'onContentHandlerForModelID' ],
 
-			'NewRevisionFromEditComplete' => [ $this, 'onNewRevisionFromEditComplete' ],
-			'LinksUpdateConstructed' => [ $this, 'onLinksUpdateConstructed' ],
+			'RevisionFromEditComplete' => [ $this, 'onRevisionFromEditComplete' ],
+			'LinksUpdateComplete' => [ $this, 'onLinksUpdateComplete' ],
 			'FileUpload' => [ $this, 'onFileUpload' ],
 			'MaintenanceUpdateAddParams' => [ $this, 'onMaintenanceUpdateAddParams' ],
 
 			'ResourceLoaderGetConfigVars' => [ $this, 'onResourceLoaderGetConfigVars' ],
-			'ResourceLoaderTestModules' => [ $this, 'onResourceLoaderTestModules' ],
 			'GetPreferences' => [ $this, 'onGetPreferences' ],
-			'PersonalUrls' => [ $this, 'onPersonalUrls' ],
-			'SkinTemplateNavigation' => [ $this, 'onSkinTemplateNavigation' ],
+			'SkinTemplateNavigation::Universal' => [ $this, 'onSkinTemplateNavigationUniversal' ],
 			'SidebarBeforeOutput' => [ $this, 'onSidebarBeforeOutput' ],
 			'LoadExtensionSchemaUpdates' => [ $this, 'onLoadExtensionSchemaUpdates' ],
 
@@ -327,17 +275,31 @@ class Hooks {
 			'DeleteAccount' => [ $this, 'onDeleteAccount' ],
 
 			'SMW::SQLStore::AfterDataUpdateComplete' => [ $this, 'onAfterDataUpdateComplete' ],
-			'SMW::SQLStore::Installer::AfterCreateTablesComplete' => [ $this, 'onAfterCreateTablesComplete' ],
+			'SMW::SQLStore::Installer::AfterCreateTablesComplete' => [
+				$this, 'onAfterCreateTablesComplete'
+			],
 
-			'SMW::Store::BeforeQueryResultLookupComplete' => [ $this, 'onBeforeQueryResultLookupComplete' ],
-			'SMW::Store::AfterQueryResultLookupComplete' => [ $this, 'onAfterQueryResultLookupComplete' ],
+			'SMW::Store::BeforeQueryResultLookupComplete' => [
+				$this, 'onBeforeQueryResultLookupComplete'
+			],
+			'SMW::Store::AfterQueryResultLookupComplete' => [
+				$this, 'onAfterQueryResultLookupComplete'
+			],
 
-			'SMW::Browse::AfterIncomingPropertiesLookupComplete' => [ $this, 'onAfterIncomingPropertiesLookupComplete' ],
-			'SMW::Browse::BeforeIncomingPropertyValuesFurtherLinkCreate' => [ $this, 'onBeforeIncomingPropertyValuesFurtherLinkCreate' ],
+			'SMW::Browse::AfterIncomingPropertiesLookupComplete' => [
+				$this, 'onAfterIncomingPropertiesLookupComplete'
+			],
+			'SMW::Browse::BeforeIncomingPropertyValuesFurtherLinkCreate' => [
+				$this, 'onBeforeIncomingPropertyValuesFurtherLinkCreate'
+			],
 
-			'SMW::SQLStore::EntityReferenceCleanUpComplete' => [ $elasticFactory, 'onEntityReferenceCleanUpComplete' ],
+			'SMW::SQLStore::EntityReferenceCleanUpComplete' => [
+				$elasticFactory, 'onEntityReferenceCleanUpComplete'
+			],
 			'SMW::Event::RegisterEventListeners' => [ $elasticFactory, 'onRegisterEventListeners' ],
-			'SMW::Maintenance::AfterUpdateEntityCollationComplete' => [ $elasticFactory, 'onAfterUpdateEntityCollationComplete' ],
+			'SMW::Maintenance::AfterUpdateEntityCollationComplete' => [
+				$elasticFactory, 'onAfterUpdateEntityCollationComplete'
+			],
 
 			'AdminLinks' => [ $this, 'onAdminLinks' ],
 			'PageSchemasRegisterHandlers' => [ $this, 'onPageSchemasRegisterHandlers' ]
@@ -350,7 +312,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ParserAfterTidy
 	 */
 	public function onParserAfterTidy( &$parser, &$text ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$settings = $applicationFactory->getSettings();
 
@@ -388,36 +349,12 @@ class Hooks {
 	}
 
 	/**
-	 * Hook: Called by BaseTemplate when building the toolbox array and
-	 * returning it for the skin to output.
-	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/BaseTemplateToolbox
-	 */
-	public function onBaseTemplateToolbox( $skinTemplate, &$toolbox ) {
-
-		$applicationFactory = ApplicationFactory::getInstance();
-
-		$baseTemplateToolbox = new BaseTemplateToolbox(
-			$applicationFactory->getNamespaceExaminer()
-		);
-
-		$baseTemplateToolbox->setOptions(
-			[
-				'smwgBrowseFeatures' => $applicationFactory->getSettings()->get( 'smwgBrowseFeatures' )
-			]
-		);
-
-		return $baseTemplateToolbox->process( $skinTemplate, $toolbox );
-	}
-	
-	/**
 	 * Hook: Called by Skin when building the toolbox array and
 	 * returning it for the skin to output.
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SidebarBeforeOutput
 	 */
 	public function onSidebarBeforeOutput( $skin, &$sidebar ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$sidebarBeforeOutput = new SidebarBeforeOutput(
@@ -440,7 +377,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SkinAfterContent
 	 */
 	public function onSkinAfterContent( &$data, $skin = null ) {
-
 		$skinAfterContent = new SkinAfterContent(
 			$skin
 		);
@@ -460,7 +396,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/OutputPageParserOutput
 	 */
 	public function onOutputPageParserOutput( &$outputPage, $parserOutput ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$permissionExaminer = $applicationFactory->newPermissionExaminer(
@@ -469,11 +404,17 @@ class Hooks {
 
 		$outputPageParserOutput = new OutputPageParserOutput(
 			$applicationFactory->getNamespaceExaminer(),
-			$permissionExaminer
+			$permissionExaminer,
+			$applicationFactory->getFactboxText()
 		);
 
+		$preferenceExaminer = $applicationFactory->newPreferenceExaminer( $outputPage->getUser() );
+
 		$outputPageParserOutput->setIndicatorRegistry(
-			$applicationFactory->create( 'IndicatorRegistry' )
+			$applicationFactory->create(
+				'IndicatorRegistry',
+				$preferenceExaminer->hasPreferenceOf( GetPreferences::SHOW_ENTITY_ISSUE_PANEL )
+			)
 		);
 
 		$outputPageParserOutput->process( $outputPage, $parserOutput );
@@ -487,7 +428,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/OutputPageCheckLastModified
 	 */
 	public function onOutputPageCheckLastModified( &$lastModified ) {
-
 		// Required to ensure that ViewAction doesn't bail out with
 		// "ViewAction::show: done 304" and hereby neglects to run the
 		// ArticleViewHeader hook
@@ -505,14 +445,14 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/BeforePageDisplay
 	 */
 	public function onBeforePageDisplay( &$outputPage, &$skin ) {
-
 		$beforePageDisplay = new BeforePageDisplay();
 		$setupFile = new SetupFile();
 
 		$beforePageDisplay->setOptions(
 			[
 				'incomplete_tasks' => $setupFile->findIncompleteTasks(),
-				'is_upgrade' => $setupFile->get( SetupFile::PREVIOUS_VERSION )
+				'is_upgrade' => $setupFile->get( SetupFile::PREVIOUS_VERSION ),
+				'smwgEnableExportRDFLink' => $GLOBALS['smwgEnableExportRDFLink'],
 			]
 		);
 
@@ -525,7 +465,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SpecialSearchResultsPrepend
 	 */
 	public function onSpecialSearchResultsPrepend( $specialSearch, $outputPage, $term ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$preferenceExaminer = $applicationFactory->newPreferenceExaminer(
@@ -545,7 +484,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SpecialSearchProfiles
 	 */
 	public function onSpecialSearchProfiles( array &$profiles ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$searchEngineConfig = $applicationFactory->singleton( 'SearchEngineConfig' );
 
@@ -566,7 +504,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SpecialSearchProfileForm
 	 */
 	public function onSpecialSearchProfileForm( $specialSearch, &$form, $profile, $term, $opts ) {
-
 		if ( !ProfileForm::isValidProfile( $profile ) ) {
 			return true;
 		}
@@ -595,7 +532,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/InternalParseBeforeLinks
 	 */
 	public function onInternalParseBeforeLinks( &$parser, &$text, &$stripState ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$internalParseBeforeLinks = new InternalParseBeforeLinks(
@@ -605,7 +541,8 @@ class Hooks {
 
 		$internalParseBeforeLinks->setOptions(
 			[
-				'smwgEnabledSpecialPage' => $applicationFactory->getSettings()->get( 'smwgEnabledSpecialPage' )
+				'smwgEnabledSpecialPage' => $applicationFactory->getSettings()
+															  ->get( 'smwgEnabledSpecialPage' )
 			]
 		);
 
@@ -613,16 +550,16 @@ class Hooks {
 	}
 
 	/**
-	 * Hook: NewRevisionFromEditComplete called when a revision was inserted
+	 * Hook: RevisionFromEditComplete called when a revision was inserted
 	 * due to an edit
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/NewRevisionFromEditComplete
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionFromEditComplete
 	 */
-	public function onNewRevisionFromEditComplete( $wikiPage, $revision, $baseId, $user ) {
-
+	public function onRevisionFromEditComplete( $wikiPage, $revision, $baseId, $user ) {
 		$applicationFactory = ApplicationFactory::getInstance();
 		$mwCollaboratorFactory = $applicationFactory->newMwCollaboratorFactory();
 
+		$user = User::newFromIdentity( $user );
 		$editInfo = $mwCollaboratorFactory->newEditInfo(
 			$wikiPage,
 			$revision,
@@ -635,18 +572,18 @@ class Hooks {
 			$user
 		);
 
-		$newRevisionFromEditComplete = new NewRevisionFromEditComplete(
+		$revisionFromEditComplete = new RevisionFromEditComplete(
 			$editInfo,
 			$pageInfoProvider,
 			$applicationFactory->singleton( 'PropertyAnnotatorFactory' ),
 			$applicationFactory->singleton( 'SchemaFactory' )
 		);
 
-		$newRevisionFromEditComplete->setEventDispatcher(
+		$revisionFromEditComplete->setEventDispatcher(
 			$applicationFactory->getEventDispatcher()
 		);
 
-		$newRevisionFromEditComplete->process( $wikiPage->getTitle() );
+		$revisionFromEditComplete->process( $wikiPage->getTitle() );
 
 		return true;
 	}
@@ -657,7 +594,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleProtectComplete
 	 */
 	public function onArticleProtectComplete( &$wikiPage, &$user, $protections, $reason ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$revisionGuard = $applicationFactory->singleton( 'RevisionGuard' );
@@ -675,7 +611,8 @@ class Hooks {
 
 		$articleProtectComplete->setOptions(
 			[
-				'smwgEditProtectionRight' => $applicationFactory->getSettings()->get( 'smwgEditProtectionRight' )
+				'smwgEditProtectionRight' => $applicationFactory->getSettings()
+															   ->get( 'smwgEditProtectionRight' )
 			]
 		);
 
@@ -694,7 +631,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleViewHeader
 	 */
 	public function onArticleViewHeader( &$page, &$outputDone, &$useParserCache ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		// Get the key to distinguish between an anon and logged-in user stored
@@ -707,7 +643,7 @@ class Hooks {
 		$wikiPage = $page->getPage();
 
 		$dependencyValidator->setETag(
-			$parserCache->getETag( $wikiPage, $wikiPage->makeParserOptions( 'canonical' ) )
+			$this->getETag( $parserCache, $wikiPage, $wikiPage->makeParserOptions( 'canonical' ) )
 		);
 
 		$dependencyValidator->setCacheTTL(
@@ -738,11 +674,15 @@ class Hooks {
 		return true;
 	}
 
+	private function getETag( $parserCache, $page, $pOpts ) {
+		return 'W/"' . $parserCache->makeParserOutputKey( $page, $pOpts	) .
+			"--" . $page->getTouched() . '"';
+	}
+
 	/**
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RejectParserCacheValue
 	 */
 	public function onRejectParserCacheValue( $value, $page, $popts ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		// Get the key to distinguish between an anon and logged-in user stored
@@ -750,10 +690,7 @@ class Hooks {
 		$parserCache = $applicationFactory->create( 'ParserCache' );
 
 		$dependencyValidator = $applicationFactory->create( 'DependencyValidator' );
-
-		$dependencyValidator->setETag(
-			$parserCache->getETag( $page, $popts )
-		);
+		$dependencyValidator->setETag( $this->getETag( $parserCache, $page, $popts ) );
 
 		$dependencyValidator->setCacheTTL(
 			Site::getCacheExpireTime( 'parser' )
@@ -779,24 +716,29 @@ class Hooks {
 	}
 
 	/**
-	 * Hook: TitleMoveComplete occurs whenever a request to move an article
+	 * Hook: PageMoveComplete occurs whenever a request to move an article
 	 * is completed
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/TitleMoveComplete
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageMoveComplete
 	 */
-	public function onTitleMoveComplete( $oldTitle, $newTitle, $user, $oldId, $newId ) {
-
+	public function onPageMoveComplete(
+		LinkTarget $oldTitle,
+		LinkTarget $newTitle,
+		UserIdentity $user,
+		int $oldId,
+		int $newId
+	) {
 		$applicationFactory = ApplicationFactory::getInstance();
 
-		$titleMoveComplete = new TitleMoveComplete(
+		$pageMoveComplete = new PageMoveComplete(
 			$applicationFactory->getNamespaceExaminer()
 		);
 
-		$titleMoveComplete->setEventDispatcher(
+		$pageMoveComplete->setEventDispatcher(
 			$applicationFactory->getEventDispatcher()
 		);
 
-		$titleMoveComplete->process( $oldTitle, $newTitle, $user, $oldId, $newId );
+		$pageMoveComplete->process( $oldTitle, $newTitle, $user, $oldId, $newId );
 
 		return true;
 	}
@@ -807,7 +749,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticlePurge
 	 */
 	public function onArticlePurge( &$wikiPage ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$settings = $applicationFactory->getSettings();
 
@@ -820,7 +761,9 @@ class Hooks {
 		$articlePurge->setOptions(
 			[
 				'smwgAutoRefreshOnPurge' => $settings->get( 'smwgAutoRefreshOnPurge' ),
-				'smwgQueryResultCacheRefreshOnPurge' => $settings->get( 'smwgQueryResultCacheRefreshOnPurge' )
+				'smwgQueryResultCacheRefreshOnPurge' => $settings->get(
+					'smwgQueryResultCacheRefreshOnPurge'
+				)
 			]
 		);
 
@@ -834,7 +777,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleDelete
 	 */
 	public function onArticleDelete( &$wikiPage, &$user, &$reason, &$error ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$articleDelete = new ArticleDelete(
@@ -849,15 +791,14 @@ class Hooks {
 	}
 
 	/**
-	 * Hook: LinksUpdateConstructed called at the end of LinksUpdate() construction
+	 * Hook: LinksUpdateComplete called at the end of LinksUpdate() construction
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/LinksUpdateConstructed
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/LinksUpdateComplete
 	 */
-	public function onLinksUpdateConstructed( $linksUpdate ) {
-
+	public function onLinksUpdateComplete( $linksUpdate ) {
 		$applicationFactory = ApplicationFactory::getInstance();
 
-		$linksUpdateConstructed = new LinksUpdateConstructed(
+		$linksUpdateConstructed = new LinksUpdateComplete(
 			$applicationFactory->getNamespaceExaminer()
 		);
 
@@ -887,7 +828,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ContentHandlerForModelID
 	 */
 	public function onContentHandlerForModelID( $modelId, &$contentHandler ) {
-
 		// 'rule-json' being a legacy model, remove with 3.1
 		if ( $modelId === 'rule-json' || $modelId === 'smw/schema' ) {
 			$contentHandler = new \SMW\MediaWiki\Content\SchemaContentHandler();
@@ -902,9 +842,8 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SpecialStatsAddExtra
 	 */
 	public function onSpecialStatsAddExtra( &$extraStats, IContextSource $context ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
-		$context->getOutput()->addModules( 'smw.tippy' );
+		$context->getOutput()->addModules( 'ext.smw.tooltip' );
 
 		$specialStatsAddExtra = new SpecialStatsAddExtra(
 			$applicationFactory->getStore()
@@ -933,9 +872,9 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/FileUpload
 	 */
 	public function onFileUpload( $file, $reupload ) {
-
 		$fileUpload = new FileUpload(
-			ApplicationFactory::getInstance()->getNamespaceExaminer()
+			ApplicationFactory::getInstance()->getNamespaceExaminer(),
+			MediaWikiServices::getInstance()->getHookContainer()
 		);
 
 		return $fileUpload->process( $file, $reupload );
@@ -945,7 +884,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/MaintenanceUpdateAddParams
 	 */
 	public function onMaintenanceUpdateAddParams( &$params ) {
-
 		ExtensionSchemaUpdates::addMaintenanceUpdateParams(
 			$params
 		);
@@ -957,7 +895,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ResourceLoaderGetConfigVars
 	 */
 	public function onResourceLoaderGetConfigVars( &$vars ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$settings = ApplicationFactory::getInstance()->getSettings();
 
@@ -976,7 +913,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/GetPreferences
 	 */
 	public function onGetPreferences( $user, &$preferences ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$settings = $applicationFactory->getSettings();
 
@@ -985,7 +921,8 @@ class Hooks {
 		);
 
 		$getPreferences = new GetPreferences(
-			$permissionExaminer
+			$permissionExaminer,
+			$applicationFactory->singleton( 'SchemaFactory' )
 		);
 
 		$getPreferences->setHookDispatcher(
@@ -1009,7 +946,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PersonalUrls
 	 */
 	public function onPersonalUrls( array &$personal_urls, $title, $skinTemplate ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$user = $skinTemplate->getUser();
 
@@ -1030,7 +966,8 @@ class Hooks {
 
 		$personalUrls->setOptions(
 			[
-				'smwgJobQueueWatchlist' => $applicationFactory->getSettings()->get( 'smwgJobQueueWatchlist' )
+				'smwgJobQueueWatchlist' => $applicationFactory->getSettings()
+															 ->get( 'smwgJobQueueWatchlist' )
 			]
 		);
 
@@ -1040,23 +977,49 @@ class Hooks {
 	}
 
 	/**
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SkinTemplateNavigation
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SkinTemplateNavigation::Universal
 	 */
-	public function onSkinTemplateNavigation( &$skinTemplate, &$links ) {
+	public function onSkinTemplateNavigationUniversal( &$skinTemplate, &$links ) {
+		if ( isset( $links['user-interface-preferences'] ) ) {
+			$applicationFactory = ApplicationFactory::getInstance();
+			$user = $skinTemplate->getUser();
 
-		$skinTemplateNavigation = new SkinTemplateNavigation(
+			$permissionExaminer = $applicationFactory->newPermissionExaminer(
+				$user
+			);
+
+			$preferenceExaminer = $applicationFactory->newPreferenceExaminer(
+				$user
+			);
+
+			$personalUrls = new PersonalUrls(
+				$skinTemplate,
+				$applicationFactory->getJobQueue(),
+				$permissionExaminer,
+				$preferenceExaminer
+			);
+
+			$personalUrls->setOptions(
+				[
+					'smwgJobQueueWatchlist' => $applicationFactory->getSettings()
+																 ->get( 'smwgJobQueueWatchlist' )
+				]
+			);
+
+			$personalUrls->process( $links['user-interface-preferences'] );
+		}
+
+		$skinTemplateNavigationUniversal = new SkinTemplateNavigationUniversal(
 			$skinTemplate,
 			$links
 		);
-
-		return $skinTemplateNavigation->process();
+		return $skinTemplateNavigationUniversal->process();
 	}
 
 	/**
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/LoadExtensionSchemaUpdates
 	 */
 	public function onLoadExtensionSchemaUpdates( $databaseUpdater ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$extensionSchemaUpdates = new ExtensionSchemaUpdates(
@@ -1071,23 +1034,9 @@ class Hooks {
 	}
 
 	/**
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ResourceLoaderTestModules
-	 */
-	public function onResourceLoaderTestModules( &$testModules, &$resourceLoader ) {
-
-		$resourceLoaderTestModules = new ResourceLoaderTestModules(
-			$resourceLoader,
-			$this->localDirectory
-		);
-
-		return $resourceLoaderTestModules->process( $testModules );
-	}
-
-	/**
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ExtensionTypes
 	 */
 	public function onExtensionTypes( &$extTypes ) {
-
 		$extensionTypes = new ExtensionTypes();
 
 		return $extensionTypes->process( $extTypes );
@@ -1097,7 +1046,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/TitleIsAlwaysKnown
 	 */
 	public function onTitleIsAlwaysKnown( $title, &$result ) {
-
 		$titleIsAlwaysKnown = new TitleIsAlwaysKnown(
 			$title,
 			$result
@@ -1110,7 +1058,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleFromTitle
 	 */
 	public function onArticleFromTitle( &$title, &$article ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$articleFromTitle = new ArticleFromTitle(
@@ -1124,7 +1071,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/TitleIsMovable
 	 */
 	public function onTitleIsMovable( $title, &$isMovable ) {
-
 		$titleIsMovable = new TitleIsMovable(
 			$title
 		);
@@ -1136,7 +1082,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/BeforeDisplayNoArticleText
 	 */
 	public function onBeforeDisplayNoArticleText( $article ) {
-
 		$beforeDisplayNoArticleText = new BeforeDisplayNoArticleText(
 			$article
 		);
@@ -1148,7 +1093,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/EditPage::showEditForm:initial
 	 */
 	public function onEditPageShowEditFormInitial( $editPage, $output ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$user = $output->getUser();
 
@@ -1168,7 +1112,8 @@ class Hooks {
 
 		$editPageForm->setOptions(
 			[
-				'smwgEnabledEditPageHelp' => $applicationFactory->getSettings()->get( 'smwgEnabledEditPageHelp' )
+				'smwgEnabledEditPageHelp' => $applicationFactory->getSettings()
+															   ->get( 'smwgEnabledEditPageHelp' )
 			]
 		);
 
@@ -1183,7 +1128,6 @@ class Hooks {
 	 * to perform an action ..."
 	 */
 	public function onTitleQuickPermissions( $title, $user, $action, &$errors, $rigor, $short ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$titleQuickPermissions = new TitleQuickPermissions(
@@ -1198,7 +1142,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ParserOptionsRegister (Only 1.30+)
 	 */
 	public function onParserOptionsRegister( &$defaults, &$inCacheKey ) {
-
 		// #2509
 		// Register a new options key, used in connection with #ask/#show
 		// where the use of a localTime invalidates the ParserCache to avoid
@@ -1213,7 +1156,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ParserFirstCallInit
 	 */
 	public function onParserFirstCallInit( &$parser ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 		$parserFunctionFactory = $applicationFactory->newParserFunctionFactory();
 		$parserFunctionFactory->registerFunctionHandlers( $parser );
@@ -1247,7 +1189,6 @@ class Hooks {
 	 *
 	 */
 	public function onDeleteAccount( $user ) {
-
 		$applicationFactory = ApplicationFactory::getInstance();
 
 		$articleDelete = new ArticleDelete(
@@ -1276,13 +1217,12 @@ class Hooks {
 	 * an IP or user has been processed ..."
 	 */
 	public function onBlockIpComplete( $block, $performer, $priorBlock ) {
-
 		$userChange = new UserChange(
 			ApplicationFactory::getInstance()->getNamespaceExaminer()
 		);
 
 		$userChange->setOrigin( 'BlockIpComplete' );
-		$userChange->process( $block->getTarget() );
+		$userChange->process( $block->getTargetUserIdentity() );
 
 		return true;
 	}
@@ -1295,13 +1235,12 @@ class Hooks {
 	 * processed ..."
 	 */
 	public function onUnblockUserComplete( $block, $performer ) {
-
 		$userChange = new UserChange(
 			ApplicationFactory::getInstance()->getNamespaceExaminer()
 		);
 
 		$userChange->setOrigin( 'UnblockUserComplete' );
-		$userChange->process( $block->getTarget() );
+		$userChange->process( $block->getTargetUserIdentity() );
 
 		return true;
 	}
@@ -1313,7 +1252,6 @@ class Hooks {
 	 * "... called after user groups are changed ..."
 	 */
 	public function onUserGroupsChanged( $user ) {
-
 		$userChange = new UserChange(
 			ApplicationFactory::getInstance()->getNamespaceExaminer()
 		);
@@ -1328,7 +1266,6 @@ class Hooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/SoftwareInfo
 	 */
 	public function onSoftwareInfo( &$software ) {
-
 		$store = ApplicationFactory::getInstance()->getStore();
 		$info = $store->getConnection( 'elastic' )->getSoftwareInfo();
 
@@ -1343,12 +1280,12 @@ class Hooks {
 	 * @see https://www.semantic-mediawiki.org/wiki/Hooks#SMW::SQLStore::AfterDataUpdateComplete
 	 */
 	public function onAfterDataUpdateComplete( $store, $semanticData, $changeOp ) {
-
 		// A delete infused change should trigger an immediate update
 		// without having to wait on the job queue
 		$isPrimaryUpdate = $semanticData->getOption( SemanticData::PROC_DELETE, false );
 
-		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()->singleton( 'QueryDependencyLinksStoreFactory' );
+		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()
+										  ->singleton( 'QueryDependencyLinksStoreFactory' );
 
 		$queryDependencyLinksStore = $queryDependencyLinksStoreFactory->newQueryDependencyLinksStore(
 			$store
@@ -1377,7 +1314,6 @@ class Hooks {
 	 * @see https://www.semantic-mediawiki.org/wiki/Hooks#SMW::Store::BeforeQueryResultLookupComplete
 	 */
 	public function onBeforeQueryResultLookupComplete( $store, $query, &$result, $queryEngine ) {
-
 		$resultCache = ApplicationFactory::getInstance()->singleton( 'ResultCache' );
 
 		$resultCache->setQueryEngine(
@@ -1399,8 +1335,8 @@ class Hooks {
 	 * @see https://www.semantic-mediawiki.org/wiki/Hooks#SMW::Store::AfterQueryResultLookupComplete
 	 */
 	public function onAfterQueryResultLookupComplete( $store, &$result ) {
-
-		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()->singleton( 'QueryDependencyLinksStoreFactory' );
+		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()
+										  ->singleton( 'QueryDependencyLinksStoreFactory' );
 
 		$queryDependencyLinksStore = $queryDependencyLinksStoreFactory->newQueryDependencyLinksStore(
 			$store
@@ -1419,8 +1355,8 @@ class Hooks {
 	 * @see https://www.semantic-mediawiki.org/wiki/Hooks/Browse::AfterIncomingPropertiesLookupComplete
 	 */
 	public function onAfterIncomingPropertiesLookupComplete( $store, $semanticData, $requestOptions ) {
-
-		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()->singleton( 'QueryDependencyLinksStoreFactory' );
+		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()
+										  ->singleton( 'QueryDependencyLinksStoreFactory' );
 
 		$queryReferenceBacklinks = $queryDependencyLinksStoreFactory->newQueryReferenceBacklinks(
 			$store
@@ -1437,9 +1373,14 @@ class Hooks {
 	/**
 	 * @see https://www.semantic-mediawiki.org/wiki/Hooks/Browse::BeforeIncomingPropertyValuesFurtherLinkCreate
 	 */
-	public function onBeforeIncomingPropertyValuesFurtherLinkCreate( $property, $subject, &$html, $store ) {
-
-		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()->singleton( 'QueryDependencyLinksStoreFactory' );
+	public function onBeforeIncomingPropertyValuesFurtherLinkCreate(
+		$property,
+		$subject,
+		&$html,
+		$store
+	) {
+		$queryDependencyLinksStoreFactory = ApplicationFactory::getInstance()
+										  ->singleton( 'QueryDependencyLinksStoreFactory' );
 
 		$queryReferenceBacklinks = $queryDependencyLinksStoreFactory->newQueryReferenceBacklinks(
 			$store
@@ -1460,7 +1401,6 @@ class Hooks {
 	 * @see https://www.semantic-mediawiki.org/wiki/Hooks#SMW::Store::AfterQueryResultLookupComplete
 	 */
 	public function onAfterCreateTablesComplete( $tableBuilder, $messageReporter, $options ) {
-
 		$messageReporter->reportMessage(
 			( new \SMW\Utils\CliMsgFormatter() )->section( 'Import task(s)', 3, '-', true )
 		);
@@ -1476,15 +1416,22 @@ class Hooks {
 			$contentIterator
 		);
 
+		if ( defined( 'User::MAINTENANCE_SCRIPT_USER' ) ) {
+			$maintenanceUser = User::MAINTENANCE_SCRIPT_USER;
+		} else {
+			// MW < 1.37
+			$maintenanceUser = 'Maintenance script';
+		}
+
 		$importer->isEnabled( $options->safeGet( \SMW\SQLStore\Installer::RUN_IMPORT, false ) );
 		$importer->setMessageReporter( $messageReporter );
+		$importer->setImporter( $maintenanceUser );
 		$importer->runImport();
 
 		return true;
 	}
 
 	public function onAdminLinks( \ALTree $admin_links_tree ) {
-
 		$adminLinks = new AdminLinks();
 		$adminLinks->process( $admin_links_tree );
 

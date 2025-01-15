@@ -2,15 +2,12 @@
 
 namespace SMW\Tests\Utils;
 
-use Revision;
-use TextContent;
+use SMW\Services\ServicesFactory;
 use Title;
 use UnexpectedValueException;
-use SMW\MediaWiki\EditInfo;
-use SMW\Services\ServicesFactory;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.1
  *
  * @author mwjames
@@ -29,7 +26,6 @@ class PageReader {
 	 * @throws UnexpectedValueException
 	 */
 	public function getPage() {
-
 		if ( $this->page instanceof \WikiPage ) {
 			return $this->page;
 		}
@@ -45,7 +41,6 @@ class PageReader {
 	 * @return text
 	 */
 	public function getContentAsText( Title $title ) {
-
 		$this->page = new \WikiPage( $title );
 		$content = $this->page->getContent();
 
@@ -56,7 +51,6 @@ class PageReader {
 	 * @since 2.2
 	 */
 	public function getEditInfo( Title $title ) {
-
 		$this->page = new \WikiPage( $title );
 
 		$editInfo = ServicesFactory::getInstance()->newMwCollaboratorFactory()->newEditInfo(

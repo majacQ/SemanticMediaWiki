@@ -41,7 +41,10 @@
 	"smw_printername_rdf": "Veur oet nao RDF",
 	"smw_printername_category": "Categorie",
 	"validator-type-class-SMWParamSource": "teks",
+	"smw-categories": "Categorieë",
 	"smw_purge": "Vernuuj",
 	"browse": "Blajer door de wiki",
-	"smw-livepreview-loading": "Laje…"
+	"smw-livepreview-loading": "Laje…",
+	"smw-listingcontinuesabbrev": "wiejer",
+	"smw-showingresults": "Hieonger staon de <b>$1</b> {{PLURAL:$1|resultaat|resultaat}}, vanaaf #<b>$2</b>."
 }

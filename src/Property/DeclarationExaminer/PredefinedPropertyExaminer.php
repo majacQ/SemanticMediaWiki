@@ -2,16 +2,17 @@
 
 namespace SMW\Property\DeclarationExaminer;
 
-use SMW\DIProperty;
-use SMW\Property\DeclarationExaminer as IDeclarationExaminer;
+use ExtensionRegistry;
 use SMW\DataTypeRegistry;
 use SMW\DataValueFactory;
-use SMW\PropertyRegistry;
+use SMW\DataValues\TypesValue;
+use SMW\DIProperty;
 use SMW\Message;
-use SMWTypesValue;
+use SMW\Property\DeclarationExaminer as IDeclarationExaminer;
+use SMW\PropertyRegistry;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.1
  *
  * @author mwjames
@@ -33,7 +34,6 @@ class PredefinedPropertyExaminer extends DeclarationExaminer {
 	 * {@inheritDoc}
 	 */
 	protected function validate( DIProperty $property ) {
-
 		if ( $property->isUserDefined() ) {
 			return;
 		}
@@ -44,7 +44,6 @@ class PredefinedPropertyExaminer extends DeclarationExaminer {
 	}
 
 	private function checkMessages( DIProperty $property ) {
-
 		if ( Message::exists( 'smw-property-introductory-message-special' ) ) {
 			$this->messages[] = [ 'info', 'smw-property-introductory-message-special', $property->getLabel() ];
 		}
@@ -76,7 +75,7 @@ class PredefinedPropertyExaminer extends DeclarationExaminer {
 			$messages[] = [
 				'smw-property-predefined-default',
 				$propertyName,
-				SMWTypesValue::newFromTypeId( $property->findPropertyValueType() )->getLongHTMLText()
+				TypesValue::newFromTypeId( $property->findPropertyValueType() )->getLongHTMLText()
 			];
 		}
 
@@ -90,7 +89,6 @@ class PredefinedPropertyExaminer extends DeclarationExaminer {
 	}
 
 	private function checkTypeDeclaration( DIProperty $property ) {
-
 		$semanticData = $this->getSemanticData();
 
 		if ( !$semanticData->hasProperty( new DIProperty( '_TYPE' ) ) ) {
@@ -122,8 +120,7 @@ class PredefinedPropertyExaminer extends DeclarationExaminer {
 	}
 
 	private function checkGeoProperty( DIProperty $property ) {
-
-		if ( $property->getKey() !== '_geo' || defined( 'SM_VERSION' ) ) {
+		if ( $property->getKey() !== '_geo' || ExtensionRegistry::getInstance()->isLoaded( 'Maps' ) ) {
 			return;
 		}
 

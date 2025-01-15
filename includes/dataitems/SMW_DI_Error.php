@@ -3,6 +3,8 @@
  * @ingroup SMWDataItems
  */
 
+use MediaWiki\Json\JsonUnserializer;
+
 /**
  * This class implements error list data items. These data items are used to
  * pass around lists of error messages within the application. They are not
@@ -25,6 +27,8 @@ class SMWDIError extends SMWDataItem {
 	 * @var string
 	 */
 	private $userValue;
+
+	public int $id;
 
 	public function __construct( $errors, $userValue = '' ) {
 		$this->m_errors = $errors;
@@ -77,4 +81,34 @@ class SMWDIError extends SMWDataItem {
 
 		return $di->getSerialization() === $this->getSerialization();
 	}
+
+	/**
+	 * Implements \JsonSerializable.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @return array
+	 */
+	public function jsonSerialize(): array {
+		$json = parent::jsonSerialize();
+		$json['userValue'] = $this->userValue;
+		return $json;
+	}
+
+	/**
+	 * Implements JsonUnserializable.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @param JsonUnserializer $unserializer Unserializer
+	 * @param array $json JSON to be unserialized
+	 *
+	 * @return self
+	 */
+	public static function newFromJsonArray( JsonUnserializer $unserializer, array $json ) {
+		$obj = parent::newFromJsonArray( $unserializer, $json );
+		$obj->userValue = $json['userValue'];
+		return $obj;
+	}
+
 }

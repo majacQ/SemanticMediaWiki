@@ -10,7 +10,7 @@ use SMWDITime as DITime;
 use SMWTimeValue as TimeValue;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.4
  *
  * @author mwjames
@@ -35,7 +35,6 @@ class TimeValueFormatter extends DataValueFormatter {
 	 * {@inheritDoc}
 	 */
 	public function format( $type, $linker = null ) {
-
 		if ( !$this->dataValue instanceof TimeValue ) {
 			throw new RuntimeException( "The formatter is missing a valid TimeValue object" );
 		}
@@ -70,13 +69,53 @@ class TimeValueFormatter extends DataValueFormatter {
 	 *
 	 * @since 2.4
 	 *
-	 * @param boolean $mindefault determining whether values below the
+	 * @param bool $mindefault determining whether values below the
 	 * precision of our input should be completed with minimal or maximal
 	 * conceivable values
 	 *
 	 * @return string
 	 */
 	public function getISO8601Date( $mindefault = true ) {
+		return $this->_getISO8601Date( $mindefault ? 'minimize' : 'maximize' );
+	}
+
+	/**
+	 * @private
+	 *
+	 * Compute a string representation as getISO8601Date but also cut off month and day
+	 * if missing
+	 *
+	 * @return string
+	 */
+	public function getPartialISO8601Date() {
+		return $this->_getISO8601Date( 'cut' );
+	}
+
+	/**
+	 * @private
+	 *
+	 * Compute a string representation that largely follows the ISO8601 standard
+	 * of representing dates. Large year numbers may have more than 4 digits,
+	 * which is not strictly conforming to the standard. The date includes year,
+	 * month, and day regardless of the input precision, but will only include
+	 * time when specified.
+	 *
+	 * Conforming to the 2000 version of ISO8601, year 1 BC(E) is represented
+	 * as "0000", year 2 BC(E) as "-0001" and so on.
+	 *
+	 * @since 2.4
+	 *
+	 * @param string $belowPrecisionHandling determining how to handle values below the
+	 * precision of our input:
+	 * * 'cut': omit the remaining part (allowing '2022' and '2022-11' as result)
+	 * * 'minimize': complete the value with minimal conceivable value
+	 * * 'maximize': complete the value with maximal conceivable value
+	 * @return string
+	 */
+	private function _getISO8601Date( $belowPrecisionHandling ) {
+		$cut = $belowPrecisionHandling === 'cut';
+		$minimize = $belowPrecisionHandling === 'minimize';
+
 		/**
 		 * @var DITime $dataItem
 		 */
@@ -86,19 +125,26 @@ class TimeValueFormatter extends DataValueFormatter {
 		$result = $dataItem->getYear() > 0 ? '' : '-';
 		$result .= str_pad( $dataItem->getYear(), 4, "0", STR_PAD_LEFT );
 
-		$monthnum = $precision >= DITime::PREC_YM ? $dataItem->getMonth() : ( $mindefault ? 1 : 12 );
+		$monthnum = $dataItem->getMonth();
+		if ( $precision < DITime::PREC_YM ) {
+			if ( $cut ) {
+				return $result;
+			}
+			$monthnum = $minimize ? 1 : 12;
+		}
 		$result .= '-' . str_pad( $monthnum, 2, "0", STR_PAD_LEFT );
 
 		$day = $dataItem->getDay();
-
-		if ( !$mindefault && $precision < DITime::PREC_YMD ) {
-			$day = DITime::getDayNumberForMonth( $monthnum, $dataItem->getYear(), DITime::CM_GREGORIAN );
+		if ( $precision < DITime::PREC_YMD ) {
+			if ( $cut ) {
+				return $result;
+			}
+			$day = $minimize ? 1 : DITime::getDayNumberForMonth( $monthnum, $dataItem->getYear(), DITime::CM_GREGORIAN );
 		}
-
 		$result .= '-' . str_pad( $day, 2, "0", STR_PAD_LEFT );
 
 		if ( $precision === DITime::PREC_YMDT ) {
-			$result .= 'T' . $this->getTimeString( ( $mindefault ? '00:00:00' : '23:59:59' ) );
+			$result .= 'T' . $this->getTimeString();
 		}
 
 		return $result;
@@ -115,7 +161,6 @@ class TimeValueFormatter extends DataValueFormatter {
 	 * @return string
 	 */
 	public function getMediaWikiDate() {
-
 		/**
 		 * @var DITime $dataItem
 		 */
@@ -174,7 +219,6 @@ class TimeValueFormatter extends DataValueFormatter {
 	 * @return string
 	 */
 	public function getCaptionFromDataItem( DITime $dataItem ) {
-
 		// If the language code is empty then the content language code is used
 		$lang = Localizer::getInstance()->getLang(
 			Localizer::getInstance()->getContentLanguage()
@@ -237,8 +281,8 @@ class TimeValueFormatter extends DataValueFormatter {
 		}
 
 		return sprintf( "%02d", $dataItem->getHour() ) . ':' .
-		       sprintf( "%02d", $dataItem->getMinute() ) . ':' .
-		       sprintf( "%02d", $dataItem->getSecond() );
+			   sprintf( "%02d", $dataItem->getMinute() ) . ':' .
+			   sprintf( "%02d", $dataItem->getSecond() );
 	}
 
 	/**
@@ -248,8 +292,7 @@ class TimeValueFormatter extends DataValueFormatter {
 	 *
 	 * @return string
 	 */
-	public function getCaptionFromFreeFormat( DITime $dataItem = null ) {
-
+	public function getCaptionFromFreeFormat( ?DITime $dataItem = null ) {
 		$language = Localizer::getInstance()->getLanguage(
 			$this->dataValue->getOption( DataValue::OPT_USER_LANGUAGE )
 		);
@@ -284,8 +327,7 @@ class TimeValueFormatter extends DataValueFormatter {
 	 *
 	 * @return string
 	 */
-	public function getLocalizedFormat( DITime $dataItem = null ) {
-
+	public function getLocalizedFormat( ?DITime $dataItem = null ) {
 		if ( $dataItem === null ) {
 			return '';
 		}
@@ -343,7 +385,6 @@ class TimeValueFormatter extends DataValueFormatter {
 	 * @return string
 	 */
 	protected function getPreferredCaption() {
-
 		/**
 		 * @var DITime $dataItem
 		 */
@@ -352,6 +393,8 @@ class TimeValueFormatter extends DataValueFormatter {
 
 		if ( $format == 'ISO' || $this->dataValue->getOutputFormat() == '-' ) {
 			return $this->getISO8601Date();
+		} elseif ( $format == 'ISO-P' ) {
+			return $this->getPartialISO8601Date();
 		} elseif ( $format == 'MEDIAWIKI' ) {
 			return $this->getMediaWikiDate();
 		} elseif ( $format == 'SORTKEY' ) {
@@ -389,7 +432,6 @@ class TimeValueFormatter extends DataValueFormatter {
 	}
 
 	private function hintTimeCorrection( $hasTimeCorrection ) {
-
 		if ( $hasTimeCorrection ) {
 			return '&nbsp;' . \Html::rawElement( 'sup', [ 'title' => 'ISO: ' . $this->getISO8601Date() ], 'ᴸ' );
 		}
@@ -398,7 +440,6 @@ class TimeValueFormatter extends DataValueFormatter {
 	}
 
 	private function hintCalendarModel( DITime $dataItem ) {
-
 		if ( $this->dataValue->isEnabledFeature( SMW_DV_TIMEV_CM ) && $dataItem->getCalendarModel() !== DITime::CM_GREGORIAN ) {
 			return ' ' . \Html::rawElement( 'sup', [], $dataItem->getCalendarModelLiteral() );
 		}

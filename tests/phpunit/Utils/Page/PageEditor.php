@@ -2,18 +2,20 @@
 
 namespace SMW\Tests\Utils\Page;
 
-use Revision;
+use CommentStoreComment;
+use MediaWiki\Revision\SlotRecord;
+use MediaWiki\Storage\RevisionSlotsUpdate;
+use RequestContext;
 use RuntimeException;
+use SMW\Services\ServicesFactory;
 use Title;
 use WikiPage;
-use SMW\MediaWiki\EditInfo;
-use SMW\Services\ServicesFactory;
 
 /**
  * @group SMW
  * @group SMWExtension
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.1
  */
 class PageEditor {
@@ -30,7 +32,6 @@ class PageEditor {
 	 * @throws RuntimeException
 	 */
 	public function getPage() {
-
 		if ( $this->page instanceof WikiPage ) {
 			return $this->page;
 		}
@@ -59,13 +60,18 @@ class PageEditor {
 	 * @return PageEditor
 	 */
 	public function doEdit( $pageContent = '', $editMessage = '' ) {
-
 		$content = new \WikitextContent( $pageContent );
 
-		$this->getPage()->doEditContent(
-			$content,
-			$editMessage
-		);
+		// Simplified implementation of WikiPage::doUserEditContent() from MW 1.36
+		$performer = RequestContext::getMain()->getUser();
+		$summary = CommentStoreComment::newUnsavedComment( trim( $editMessage ) );
+
+		$slotsUpdate = new RevisionSlotsUpdate();
+		$slotsUpdate->modifyContent( SlotRecord::MAIN, $content );
+
+		$updater = $this->getPage()->newPageUpdater( $performer, $slotsUpdate );
+		$updater->setContent( SlotRecord::MAIN, $content );
+		$updater->saveRevision( $summary );
 
 		return $this;
 	}
@@ -74,7 +80,6 @@ class PageEditor {
 	 * @since 2.1
 	 */
 	public function getEditInfo() {
-
 		$editInfo = ServicesFactory::getInstance()->newMwCollaboratorFactory()->newEditInfo(
 			$this->getPage()
 		);

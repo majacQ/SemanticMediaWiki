@@ -2,16 +2,20 @@
 
 namespace SMW\Tests\Utils;
 
-use Revision;
-use SMW\Tests\TestEnvironment;
-use SMW\Tests\Utils\Mock\MockSuperUser;
-use Title;
-use UnexpectedValueException;
+use CommentStoreComment;
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\SlotRecord;
+use MediaWiki\Storage\RevisionSlotsUpdate;
+use RequestContext;
 use SMW\MediaWiki\EditInfo;
 use SMW\Services\ServicesFactory;
+use SMW\Tests\TestEnvironment;
+use Title;
+use UnexpectedValueException;
+use User;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9.1
  *
  * @author mwjames
@@ -26,7 +30,7 @@ class PageCreator {
 	/**
 	 * @since 3.1
 	 *
-	 * @return WikiPage
+	 * @return \WikiPage
 	 */
 	public function setPage( \WikiPage $page ) {
 		$this->page = $page;
@@ -35,11 +39,10 @@ class PageCreator {
 	/**
 	 * @since 1.9.1
 	 *
-	 * @return WikiPage
+	 * @return \WikiPage
 	 * @throws UnexpectedValueException
 	 */
 	public function getPage() {
-
 		if ( $this->page instanceof \WikiPage ) {
 			return $this->page;
 		}
@@ -57,10 +60,10 @@ class PageCreator {
 	 * @return PageCreator
 	 */
 	public function createPage( Title $title, $editContent = '', $pageContentLanguage = '' ) {
-
 		if ( $pageContentLanguage !== '' ) {
-			\Hooks::register( 'PageContentLanguage', function( $titleByHook, &$pageLang ) use( $title, $pageContentLanguage ) {
-
+			$services = MediaWikiServices::getInstance();
+			$pageContentLanguage = $services->getLanguageFactory()->getLanguage( $pageContentLanguage );
+			$services->getHookContainer()->register( 'PageContentLanguage', static function ( $titleByHook, &$pageLang ) use( $title, $pageContentLanguage ) {
 				// Only change the pageContentLanguage for the selected page
 				if ( $title->getPrefixedDBKey() === $titleByHook->getPrefixedDBKey() ) {
 					$pageLang = $pageContentLanguage;
@@ -91,16 +94,21 @@ class PageCreator {
 	 * @return PageCreator
 	 */
 	public function doEdit( $pageContent = '', $editMessage = '' ) {
-
 		$content = \ContentHandler::makeContent(
 			$pageContent,
 			$this->getPage()->getTitle()
 		);
 
-		$this->getPage()->doEditContent(
-			$content,
-			$editMessage
-		);
+		// Simplified implementation of WikiPage::doUserEditContent() from MW 1.36
+		$performer = RequestContext::getMain()->getUser();
+		$summary = CommentStoreComment::newUnsavedComment( trim( $editMessage ) );
+
+		$slotsUpdate = new RevisionSlotsUpdate();
+		$slotsUpdate->modifyContent( SlotRecord::MAIN, $content );
+
+		$updater = $this->getPage()->newPageUpdater( $performer, $slotsUpdate );
+		$updater->setContent( SlotRecord::MAIN, $content );
+		$updater->saveRevision( $summary );
 
 		TestEnvironment::executePendingDeferredUpdates();
 
@@ -111,22 +119,17 @@ class PageCreator {
 	 * @since 2.3
 	 *
 	 * @param Title $target
-	 * @param boolean $isRedirect
+	 * @param bool $isRedirect
 	 *
 	 * @return PageCreator
 	 */
 	public function doMoveTo( Title $target, $isRedirect = true ) {
-
 		$reason = "integration test";
 		$source = $this->getPage()->getTitle();
 
-		if ( class_exists( '\MovePage' ) ) {
-			$mp = new \MovePage( $source, $target );
-			$status = $mp->move( new MockSuperUser(), $reason, $isRedirect );
-		} else {
-			// deprecated since 1.25, use the MovePage class instead
-			$status = $source->moveTo( $target, false, $reason, $isRedirect );
-		}
+		$user = User::newSystemUser( 'Maintenance script', [ 'steal' => true ] );
+		$mp = MediaWikiServices::getInstance()->getMovePageFactory()->newMovePage( $source, $target );
+		$status = $mp->move( $user, $reason, $isRedirect );
 
 		TestEnvironment::executePendingDeferredUpdates();
 
@@ -143,7 +146,6 @@ class PageCreator {
 	 * @return EditInfo
 	 */
 	public function getEditInfo() {
-
 		$editInfo = ServicesFactory::getInstance()->newMwCollaboratorFactory()->newEditInfo(
 			$this->getPage()
 		);

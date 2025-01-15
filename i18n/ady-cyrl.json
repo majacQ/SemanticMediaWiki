@@ -1,9 +1,12 @@
 {
 	"@metadata": {
 		"authors": [
+			"Bedynokue.nart",
 			"Inyzh",
 			"SamGamgee"
 		]
 	},
-	"browse": "НэкIубгъомэ ашъхьырыплъ"
+	"smw-categories": "Категориехэр",
+	"browse": "НэкIубгъомэ ашъхьырыплъ",
+	"smw-listingcontinuesabbrev": "пэубл."
 }

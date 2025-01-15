@@ -7,6 +7,7 @@
 		]
 	},
 	"smw_true_words": "bener,t,nya,y",
+	"smw-categories": "Kategori",
 	"smw-special-property-searchform": "Témbongkeun properti anu ngandung:",
 	"smw-special-property-searchform-options": "Pilihan",
 	"smw-special-wantedproperties-filter-label": "Saringan:",
@@ -34,5 +35,7 @@
 	"smw-format-datatable-search": "Paluruh",
 	"smw-format-datatable-first": "mimiti",
 	"smw-format-datatable-last": "Pamungkas",
-	"smw-format-datatable-next": "Saterusna"
+	"smw-format-datatable-next": "Saterusna",
+	"smw-listingcontinuesabbrev": "(samb.)",
+	"smw-showingresults": "Di handap ieu némbongkeun {{PLURAL:$1|'''1''' hasil|'''$1''' hasil}}, dimimitianku  #'''$2'''."
 }

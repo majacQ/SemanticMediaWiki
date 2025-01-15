@@ -2,22 +2,22 @@
 
 namespace SMW\Protection;
 
-use Onoi\Cache\Cache;
+use MediaWiki\Permissions\PermissionManager as MwPermissionManager;
 use SMW\DIProperty;
 use SMW\DIWikiPage;
-use SMW\RequestOptions;
-use SMW\Store;
 use SMW\EntityCache;
-use SMW\MediaWiki\PermissionManager;
 use SMW\Listener\ChangeListener\ChangeListeners\PropertyChangeListener;
 use SMW\Listener\ChangeListener\ChangeRecord;
+use SMW\MediaWiki\PermissionManager;
+use SMW\Services\ServicesFactory;
+use SMW\Store;
 use Title;
 use User;
 
 /**
  * Handles protection validation.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.5
  *
  * @author mwjames
@@ -40,27 +40,27 @@ class ProtectionValidator {
 	private $permissionManager;
 
 	/**
-	 * @var boolean|string
+	 * @var bool|string
 	 */
 	private $editProtectionRight = false;
 
 	/**
-	 * @var boolean|string
+	 * @var bool|string
 	 */
 	private $createProtectionRight = false;
 
 	/**
-	 * @var boolean|string
+	 * @var bool|string
 	 */
 	private $changePropagationProtection = true;
 
 	/**
-	 * @var []
+	 * @var
 	 */
 	private $importPerformers = [];
 
 	/**
-	 * @var []
+	 * @var
 	 */
 	private $importPerformerProtectionLookupCache = [];
 
@@ -93,7 +93,6 @@ class ProtectionValidator {
 	 * @param ChangeRecord $changeRecord
 	 */
 	public function invalidateCache( DIProperty $property, ChangeRecord $changeRecord ) {
-
 		if ( $property->getKey() !== '_CHGPRO' ) {
 			return;
 		}
@@ -125,7 +124,7 @@ class ProtectionValidator {
 	/**
 	 * @since 2.5
 	 *
-	 * @param string|boolean $editProtectionRight
+	 * @param string|bool $editProtectionRight
 	 */
 	public function setEditProtectionRight( $editProtectionRight ) {
 		$this->editProtectionRight = $editProtectionRight;
@@ -143,7 +142,7 @@ class ProtectionValidator {
 	/**
 	 * @since 2.5
 	 *
-	 * @param string|boolean $createProtectionRight
+	 * @param string|bool $createProtectionRight
 	 */
 	public function setCreateProtectionRight( $createProtectionRight ) {
 		$this->createProtectionRight = $createProtectionRight;
@@ -161,7 +160,7 @@ class ProtectionValidator {
 	/**
 	 * @since 3.0
 	 *
-	 * @param boolean $changePropagationProtection
+	 * @param bool $changePropagationProtection
 	 */
 	public function setChangePropagationProtection( $changePropagationProtection ) {
 		$this->changePropagationProtection = (bool)$changePropagationProtection;
@@ -181,10 +180,9 @@ class ProtectionValidator {
 	 *
 	 * @param Title $title
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasEditProtectionOnNamespace( Title $title ) {
-
 		$subject = DIWikiPage::newFromTitle(
 			$title
 		);
@@ -206,23 +204,24 @@ class ProtectionValidator {
 	 * @param Title $title
 	 * @param User $user
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
-	public function isClassifiedAsImportPerformerProtected( Title $title, User $user ) : bool {
-
+	public function isClassifiedAsImportPerformerProtected( Title $title, User $user ): bool {
 		if ( $this->importPerformers === [] ) {
 			return false;
 		}
 
 		$key = md5( $title->getDBKey() . "#" . $user->getName() );
 
-		// `WikiPage::getCreator` -> `Title::getFirstRevision` isn't cached therefore
+		// `WikiPage::getCreator` -> `RevisionLookup::getFirstRevision` isn't cached therefore
 		// avoid repeated requests for the `key` combination
 		if ( isset( $this->importPerformerProtectionLookupCache[$key] ) ) {
 			return $this->importPerformerProtectionLookupCache[$key];
 		}
 
-		$creator = \WikiPage::factory( $title )->getCreator();
+		$creator = ServicesFactory::getInstance()->newPageCreator()
+			->createPage( $title )
+			->getCreator();
 
 		if ( !$creator instanceof User ) {
 			return $this->importPerformerProtectionLookupCache[$key] = false;
@@ -244,10 +243,9 @@ class ProtectionValidator {
 	 *
 	 * @param Title $title
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasChangePropagationProtection( Title $title ) {
-
 		$subject = DIWikiPage::newFromTitle( $title )->asBase();
 		$namespace = $subject->getNamespace();
 
@@ -267,10 +265,9 @@ class ProtectionValidator {
 	 *
 	 * @param Title $title
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function hasProtection( Title $title ) {
-
 		$subject = DIWikiPage::newFromTitle(
 			$title
 		);
@@ -281,17 +278,18 @@ class ProtectionValidator {
 	/**
 	 * @since 3.0
 	 *
-	 * @param Title $title
+	 * @param Title|null $title
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
-	public function hasCreateProtection( Title $title = null ) {
-
+	public function hasCreateProtection( ?Title $title = null ) {
 		if ( $title === null ) {
 			return false;
 		}
 
-		return $this->createProtectionRight && !$this->permissionManager->userCan( 'edit', null, $title );
+		$rigor = MwPermissionManager::RIGOR_QUICK;
+		return $this->createProtectionRight &&
+			!$this->permissionManager->userCan( 'edit', null, $title, $rigor );
 	}
 
 	/**
@@ -302,12 +300,11 @@ class ProtectionValidator {
 	 *
 	 * @since 2.5
 	 *
-	 * @param Title $title
+	 * @param Title|null $title
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
-	public function hasEditProtection( Title $title = null ) {
-
+	public function hasEditProtection( ?Title $title = null ) {
 		if ( $title === null ) {
 			return false;
 		}
@@ -316,11 +313,12 @@ class ProtectionValidator {
 			$title
 		);
 
-		return !$this->permissionManager->userCan( 'edit', null, $title ) && $this->checkProtection( $subject->asBase() );
+		$rigor = MwPermissionManager::RIGOR_QUICK;
+		return !$this->permissionManager->userCan( 'edit', null, $title, $rigor )
+			&& $this->checkProtection( $subject->asBase() );
 	}
 
 	private function checkProtection( $subject, $property = null ) {
-
 		if ( $property === null ) {
 			$property = new DIProperty( '_EDIP' );
 		}

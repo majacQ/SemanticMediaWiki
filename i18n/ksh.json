@@ -100,6 +100,7 @@
 	"smw_exportrdf_submit": "Lohß Jonn!",
 	"uriresolver": "Oplööser för <i lang=\"en\">URIs</i>",
 	"properties": "Eijeschaffte",
+	"smw-categories": "Saachjroppe",
 	"smw_properties_docu": "Heh di Eijeschaffte wähde em Wikki jebruch:",
 	"smw_property_template": "$1 fun dä Zoot $2 ({{PLURAL:$3|ei|$3|kei}} mol)",
 	"smw_propertylackspage": "Alle Eijeschaffte sullte op en Sigg beschrevve sin!",
@@ -230,5 +231,7 @@
 	"smw-limitreport-intext-parsertime": "[SMW] De Zigg di der Paaser för et Annotehre jebruch hät",
 	"smw-limitreport-intext-parsertime-value": "{{PLURAL:$1|eijn Sekond|$1 Sekonde|keijn Sekond}}",
 	"smw-limitreport-pagepurge-storeupdatetime": "[SMW] De Duur för et Ändere fum Zwescheschpeijscher beim Fottschmiiße",
-	"smw-limitreport-pagepurge-storeupdatetime-value": "{{PLURAL:$1|eijn Sekond|$1 Sekond|keijn Sekond}}"
+	"smw-limitreport-pagepurge-storeupdatetime-value": "{{PLURAL:$1|eijn Sekond|$1 Sekond|keijn Sekond}}",
+	"smw-listingcontinuesabbrev": "… (wigger)",
+	"smw-showingresults": "Onge {{PLURAL:$1|weed <strong>eine</strong>|wääde bes <strong>$1</strong>|weed <strong>keine</strong>}} vun de jefonge Endrähsch jezeisch, vun de Nommer <strong>$2</strong> av."
 }

@@ -2,6 +2,7 @@
 
 namespace SMW;
 
+use MediaWiki\Json\JsonUnserializer;
 use SMWDataItem;
 
 /**
@@ -32,49 +33,49 @@ class DIConcept extends \SMWDataItem {
 	protected $m_docu;
 	/**
 	 * Flags of query features.
-	 * @var integer
+	 * @var int
 	 */
 	protected $m_features;
 	/**
 	 * Size of the query.
-	 * @var integer
+	 * @var int
 	 */
 	protected $m_size;
 	/**
 	 * Depth of the query.
-	 * @var integer
+	 * @var int
 	 */
 	protected $m_depth;
 
 	/**
 	 * Status
-	 * @var integer
+	 * @var int
 	 */
 	protected $cacheStatus;
 
 	/**
 	 * Date
-	 * @var integer
+	 * @var int
 	 */
 	protected $cacheDate;
 
 	/**
 	 * Count
-	 * @var integer
+	 * @var int
 	 */
 	protected $cacheCount;
 
 	/**
 	 * @param string $concept the concept query string
 	 * @param string $docu user documentation
-	 * @param integer $queryefeatures flags about query features
-	 * @param integer $size concept query size
-	 * @param integer $depth concept query depth
+	 * @param int $queryFeatures flags about query features
+	 * @param int $size concept query size
+	 * @param int $depth concept query depth
 	 */
-	public function __construct( $concept, $docu, $queryfeatures, $size, $depth ) {
+	public function __construct( $concept, $docu, $queryFeatures, $size, $depth ) {
 		$this->m_concept  = $concept;
 		$this->m_docu     = $docu;
-		$this->m_features = $queryfeatures;
+		$this->m_features = $queryFeatures;
 		$this->m_size     = $size;
 		$this->m_depth    = $depth;
 	}
@@ -195,6 +196,39 @@ class DIConcept extends \SMWDataItem {
 			return false;
 		}
 		return $di->getSerialization() === $this->getSerialization();
+	}
+
+	/**
+	 * Implements \JsonSerializable.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @return array
+	 */
+	public function jsonSerialize(): array {
+		$json = parent::jsonSerialize();
+		$json['cacheStatus'] = $this->cacheStatus;
+		$json['cacheDate'] = $this->cacheDate;
+		$json['cacheCount'] = $this->cacheCount;
+		return $json;
+	}
+
+	/**
+	 * Implements JsonUnserializable.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @param JsonUnserializer $unserializer Unserializer
+	 * @param array $json JSON to be unserialized
+	 *
+	 * @return self
+	 */
+	public static function newFromJsonArray( JsonUnserializer $unserializer, array $json ) {
+		$obj = parent::newFromJsonArray( $unserializer, $json );
+		$obj->cacheStatus = $json['cacheStatus'];
+		$obj->cacheDate = $json['cacheDate'];
+		$obj->cacheCount = $json['cacheCount'];
+		return $obj;
 	}
 
 }

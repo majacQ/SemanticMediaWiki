@@ -2,25 +2,26 @@
 
 namespace SMW\Maintenance;
 
-use SMW\ApplicationFactory;
 use Onoi\MessageReporter\MessageReporter;
-use SMW\SQLStore\SQLStore;
-use SMW\Utils\HmacSerializer;
 use SMW\DIWikiPage;
-use SMW\Maintenance\MaintenanceCheck;
+use SMW\Services\ServicesFactory as ApplicationFactory;
+use SMW\SQLStore\SQLStore;
 use SMW\Utils\CliMsgFormatter;
+use SMW\Utils\HmacSerializer;
 
 /**
  * Load the required class
  */
+// @codeCoverageIgnoreStart
 if ( getenv( 'MW_INSTALL_PATH' ) !== false ) {
 	require_once getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php';
 } else {
 	require_once __DIR__ . '/../../../maintenance/Maintenance.php';
 }
+// @codeCoverageIgnoreEnd
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.2
  *
  * @author mwjames
@@ -83,9 +84,8 @@ class updateEntityCountMap extends \Maintenance {
 	 * @see Maintenance::execute
 	 */
 	public function execute() {
-
 		if ( ( $maintenanceCheck = new MaintenanceCheck() )->canExecute() === false ) {
-			exit ( $maintenanceCheck->getMessage() );
+			exit( $maintenanceCheck->getMessage() );
 		}
 
 		$applicationFactory = ApplicationFactory::getInstance();
@@ -148,7 +148,6 @@ class updateEntityCountMap extends \Maintenance {
 	}
 
 	private function getCount() {
-
 		$connection = $this->store->getConnection( 'mw.db' );
 
 		$this->last = (int)$connection->selectField(
@@ -179,10 +178,9 @@ class updateEntityCountMap extends \Maintenance {
 	}
 
 	private function runUpdate() {
-
 		$connection = $this->store->getConnection( 'mw.db' );
 
-		for ( $i = 0; $i <= $this->last ; $i++ ) {
+		for ( $i = 0; $i <= $this->last; $i++ ) {
 
 			$row = $connection->selectRow(
 				SQLStore::ID_TABLE,
@@ -240,18 +238,18 @@ class updateEntityCountMap extends \Maintenance {
 				HmacSerializer::compress( $countMap )
 			);
 
-			$rows = [
-				'smw_id' => $row->smw_id,
-				'smw_countmap' => $countMap
-			];
-
 			$connection->upsert(
 				SQLStore::ID_AUXILIARY_TABLE,
-				$rows,
+				[
+					'smw_id' => $row->smw_id,
+					'smw_countmap' => $countMap
+				],
 				[
 					'smw_id'
 				],
-				$rows,
+				[
+					'smw_countmap' => $countMap
+				],
 				__METHOD__
 			);
 
@@ -275,5 +273,7 @@ class updateEntityCountMap extends \Maintenance {
 
 }
 
+// @codeCoverageIgnoreStart
 $maintClass = updateEntityCountMap::class;
-require_once( RUN_MAINTENANCE_IF_MAIN );
+require_once RUN_MAINTENANCE_IF_MAIN;
+// @codeCoverageIgnoreEnd

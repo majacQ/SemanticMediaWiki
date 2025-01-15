@@ -2,22 +2,20 @@
 
 namespace SMW\Schema;
 
-use SMW\DIProperty;
-use SMW\RequestOptions;
-use SMW\Store;
-use SMWDIBlob as DIBlob;
-use SMWDataItem as DataItem;
-use Title;
-use SMW\DIWikiPage;
-use SMW\PropertySpecificationLookup;
 use Onoi\Cache\Cache;
+use SMW\DIProperty;
+use SMW\DIWikiPage;
 use SMW\Listener\ChangeListener\ChangeListeners\PropertyChangeListener;
 use SMW\Listener\ChangeListener\ChangeRecord;
+use SMW\PropertySpecificationLookup;
+use SMW\Store;
+use SMWDataItem as DataItem;
+use SMWDIBlob as DIBlob;
 
 /**
  * @private
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.1
  *
  * @author mwjames
@@ -50,7 +48,7 @@ class SchemaFinder {
 	private $cache;
 
 	/**
-	 * @var integer
+	 * @var int
 	 */
 	private $cacheTTL;
 
@@ -84,7 +82,6 @@ class SchemaFinder {
 	 * @param ChangeRecord $changeRecord
 	 */
 	public function invalidateCache( DIProperty $property, ChangeRecord $changeRecord ) {
-
 		if ( $property->getKey() !== '_SCHEMA_TYPE' ) {
 			return;
 		}
@@ -103,32 +100,22 @@ class SchemaFinder {
 
 	/**
 	 * @since 3.1
-	 *
-	 * @param DataItem $dataItem
-	 *
-	 * @return SchemaList|[]
 	 */
-	public function getConstraintSchema( DataItem $dataItem ) {
+	public function getConstraintSchema( DataItem $dataItem ): ?SchemaList {
 		return $this->newSchemaList( $dataItem, new DIProperty( '_CONSTRAINT_SCHEMA' ) );
 	}
 
 	/**
 	 * @since 3.1
-	 *
-	 * @param DataItem $dataItem
-	 * @param DIProperty $property
-	 *
-	 * @return SchemaList|[]
 	 */
-	public function newSchemaList( DataItem $dataItem, DIProperty $property ) {
-
+	public function newSchemaList( DataItem $dataItem, DIProperty $property ): ?SchemaList {
 		$dataItems = $this->propertySpecificationLookup->getSpecification(
 			$dataItem,
 			$property
 		);
 
 		if ( $dataItems === null || $dataItems === false ) {
-			return [];
+			return null;
 		}
 
 		$schemaList = [];
@@ -148,7 +135,6 @@ class SchemaFinder {
 	 * @return SchemaList
 	 */
 	public function getSchemaListByType( $type ) {
-
 		$schemaList = [];
 		$key = smwfCacheKey( self::CACHE_NAMESPACE, [ self::TYPE_LIST, $type ] );
 
@@ -175,7 +161,6 @@ class SchemaFinder {
 	}
 
 	private function findSchemaDefinition( $subject, &$schemaList ) {
-
 		if ( !$subject instanceof DIWikiPage ) {
 			return;
 		}

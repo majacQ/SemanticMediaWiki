@@ -4,12 +4,12 @@ namespace SMW\MediaWiki\Specials\Admin;
 
 use Html;
 use SMW\Message;
-use WebRequest;
 use SMW\Utils\FileFetcher;
 use SMW\Utils\HtmlTabs;
+use WebRequest;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since   3.1
  *
  * @author mwjames
@@ -58,7 +58,7 @@ class MaintenanceTaskHandler extends TaskHandler implements ActionableTask {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function getTask() : string {
+	public function getTask(): string {
 		return '';
 	}
 
@@ -67,8 +67,7 @@ class MaintenanceTaskHandler extends TaskHandler implements ActionableTask {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function isTaskFor( string $action ) : bool {
-
+	public function isTaskFor( string $action ): bool {
 		foreach ( $this->taskHandlers as $taskHandler ) {
 			if ( $taskHandler->isTaskFor( $action ) ) {
 				return true;
@@ -84,7 +83,6 @@ class MaintenanceTaskHandler extends TaskHandler implements ActionableTask {
 	 * {@inheritDoc}
 	 */
 	public function getHtml() {
-
 		$tasks = '';
 		$html = '';
 
@@ -104,8 +102,10 @@ class MaintenanceTaskHandler extends TaskHandler implements ActionableTask {
 		$htmlTabs->tab( 'tasks', $this->msg( 'smw-admin-maintenance-tab-tasks' ) );
 		$htmlTabs->content( 'tasks', $tasks );
 
-		$htmlTabs->tab( 'scripts', $this->msg( 'smw-admin-maintenance-tab-scripts' ) );
-		$htmlTabs->content( 'scripts', $this->buildHTML() );
+		if ( $this->hasFeature( SMW_ADM_MAINTENANCE_SCRIPT_DOCS ) ) {
+			$htmlTabs->tab( 'scripts', $this->msg( 'smw-admin-maintenance-tab-scripts' ) );
+			$htmlTabs->content( 'scripts', $this->buildHTML() );
+		}
 
 		$html .= $htmlTabs->buildHTML( [ 'class' => 'maintenance', 'style' => 'margin-top:20px;' ] );
 
@@ -124,7 +124,6 @@ class MaintenanceTaskHandler extends TaskHandler implements ActionableTask {
 	 * {@inheritDoc}
 	 */
 	public function handleRequest( WebRequest $webRequest ) {
-
 		$action = $webRequest->getText( 'action' );
 
 		foreach ( $this->taskHandlers as $taskHandler ) {
@@ -153,7 +152,6 @@ class MaintenanceTaskHandler extends TaskHandler implements ActionableTask {
 	}
 
 	private function buildHTML() {
-
 		$html = Html::rawElement(
 			'p',
 			[
@@ -204,7 +202,7 @@ class MaintenanceTaskHandler extends TaskHandler implements ActionableTask {
 					'href' => $this->msg( [ 'smw-helplink', $name ] )
 				],
 				$name
-			) . ":&nbsp;". $description;
+			) . ":&nbsp;" . $description;
 		}
 
 		$list = '';

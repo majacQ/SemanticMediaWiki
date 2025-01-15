@@ -10,13 +10,20 @@ Accessing an Elasticsearch cluster from within Semantic MediaWiki requires to al
 
 `smwgElasticsearchEndpoints` is a __required__ setting and contains a list of available endpoints to establish a connection with an Elasticsearch cluster.
 
-<pre>
+```
 $GLOBALS['smwgElasticsearchEndpoints'] = [
 	[ 'host' => '192.168.1.126', 'port' => 9200, 'scheme' => 'http' ], // extended
 	'localhost:9200' // inline
 ];
-</pre>
+```
 
+For SMW 4.1.3 and Elasticsearch 7.10.2 you also need to provide :
+```
+$smwgElasticsearchCredentials = [
+    'user' => $elastic_user,
+    'pass' => $elastic_password,
+];
+```
 Please consult the official [documentation][es:conf:hosts] for details about how to use the inline or extended form.
 
 ## Configuration
@@ -45,7 +52,7 @@ $GLOBALS['smwgElasticsearchConfig'] = [
 
 ### Changing a setting
 
-A detailed list of settings and their explanations is available in the `DefaultSettings.php`. Please make sure that after changing any setting, `php rebuildElasticIndex.php --update-settings` is executed.
+A detailed list of settings and their explanations is available in the `includes/DefaultSettings.php`. Please make sure that after changing any setting, `php rebuildElasticIndex.php --update-settings` is executed.
 
 When modifying a particular setting, use an appropriate key to change the value of a parameter otherwise it is possible that the entire configuration is replaced.
 

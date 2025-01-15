@@ -4,11 +4,9 @@
  * @since 1.8
  */
 
-namespace SMW\Test;
+namespace SMW\Tests;
 
-use SMW\Tests\MwDBaseUnitTestCase;
 use SMWQueryProcessor;
-use SMW\Tests\PHPUnitCompat;
 
 /**
  * Tests for the SMWQueryProcessor class.
@@ -20,24 +18,24 @@ use SMW\Tests\PHPUnitCompat;
  * @group SMWExtension
  * @group SMWQueries
  * @group SMWQueryProcessorTest
+ * @group Database
  *
  * @author Nischay Nahata
  */
-class SMWQueryProcessorTest extends MwDBaseUnitTestCase {
+class SMWQueryProcessorTest extends SMWIntegrationTestCase {
 
 	use PHPUnitCompat;
-	
+
 	public function createQueryDataProvider() {
 		return [
 			[ '[[Modification date::+]]|?Modification date|sort=Modification date|order=desc' ],
 		];
 	}
-	
-	/**
-	* @dataProvider resultAliasDataProvider
-	*/
-	public function testGetResultPrinter_MatchAlias( $alias ) {
 
+	/**
+	 * @dataProvider resultAliasDataProvider
+	 */
+	public function testGetResultPrinter_MatchAlias( $alias ) {
 		$this->assertInstanceOf(
 			'\SMW\Query\ResultPrinter',
 			SMWQueryProcessor::getResultPrinter( $alias )
@@ -45,29 +43,26 @@ class SMWQueryProcessorTest extends MwDBaseUnitTestCase {
 	}
 
 	public function resultAliasDataProvider() {
-
 		foreach ( $GLOBALS['smwgResultAliases'] as $format => $aliases ) {
 			foreach ( $aliases as $alias ) {
 				yield [ $alias ];
 			}
 		}
 	}
-	
-	public function testGetResultPrinter_ThrowsException() {
 
+	public function testGetResultPrinter_ThrowsException() {
 		$this->expectException( '\SMW\Query\Exception\ResultFormatNotFoundException' );
 		SMWQueryProcessor::getResultPrinter( 'unknown_format' );
 	}
-	
 
 	/**
-	* @dataProvider createQueryDataProvider
-	*/
+	 * @dataProvider createQueryDataProvider
+	 */
 	public function testCreateQuery( $query ) {
 		// TODO: this prevents doing [[Category:Foo||bar||baz]], must document.
 		$rawParams = explode( '|', $query );
 
-		list( $queryString, $parameters, $printouts ) = SMWQueryProcessor::getComponentsFromFunctionParams( $rawParams, false );
+		[ $queryString, $parameters, $printouts ] = SMWQueryProcessor::getComponentsFromFunctionParams( $rawParams, false );
 
 		SMWQueryProcessor::addThisPrintout( $printouts, $parameters );
 
@@ -90,8 +85,7 @@ class SMWQueryProcessorTest extends MwDBaseUnitTestCase {
 	 * @dataProvider rawParamsProvider
 	 */
 	public function testQuerStringFromRawParameters( $rawParams, $expected ) {
-
-		list( $queryString, $parameters, $printouts ) = SMWQueryProcessor::getComponentsFromFunctionParams( $rawParams, false );
+		[ $queryString, $parameters, $printouts ] = SMWQueryProcessor::getComponentsFromFunctionParams( $rawParams, false );
 
 		$this->assertEquals(
 			$expected,
@@ -100,7 +94,6 @@ class SMWQueryProcessorTest extends MwDBaseUnitTestCase {
 	}
 
 	public function rawParamsProvider() {
-
 		$provider[] = [
 			[ 'Foo', 'bar' ],
 			'Foobar'

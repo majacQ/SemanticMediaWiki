@@ -2,6 +2,7 @@
 	"@metadata": {
 		"authors": [
 			"Chrisportelli",
+			"Giangian15",
 			"Leli Forte",
 			"Roderick Mallia",
 			"ToniSant",
@@ -9,6 +10,7 @@
 		]
 	},
 	"smw_exportrdf_submit": "Esporta",
+	"smw-categories": "Kategoriji",
 	"smw_purge": "Aġġorna",
 	"browse": "Esplora l-wiki",
 	"smw_browse_go": "Mur",
@@ -16,5 +18,7 @@
 	"smw-admin-statistics": "Statistika",
 	"smw-livepreview-loading": "Tniżżil fil-progress…",
 	"smw-sp-searchbyproperty-resultlist-header": "Lista ta' riżultati",
-	"logeventslist-smw-log": "Semantic MediaWiki"
+	"logeventslist-smw-log": "Semantic MediaWiki",
+	"smw-listingcontinuesabbrev": "kompli",
+	"smw-showingresults": "Hawn taħt ġie inkluż massimu ta' {{PLURAL:$1|riżultat '''1''' li jibda|'''$1''' riżultat li jibdew}} bin-numru '''$2'''."
 }

@@ -4,16 +4,16 @@ namespace SMW\Tests\Utils\Runners;
 
 use ImportReporter;
 use ImportStreamSource;
+use MediaWiki\MediaWikiServices;
 use RequestContext;
 use RuntimeException;
 use SMW\Tests\TestEnvironment;
-use WikiImporter;
 
 /**
  * @group SMW
  * @group SMWExtension
  *
- * @licence GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9.1
  *
  * @author mwjames
@@ -25,6 +25,7 @@ class XmlImportRunner {
 	protected $exception = false;
 	protected $result = null;
 	protected $verbose = false;
+	protected float $importTime;
 
 	/**
 	 * @var TestEnvironment
@@ -44,7 +45,7 @@ class XmlImportRunner {
 	}
 
 	/**
-	 * @param boolean $verbose
+	 * @param bool $verbose
 	 *
 	 * @return XmlImportRunner
 	 */
@@ -62,13 +63,11 @@ class XmlImportRunner {
 
 	/**
 	 * @throws RuntimeException
-	 * @return boolean
+	 * @return bool
 	 */
 	public function run() {
-
 		$this->unregisterUploadsource();
 		$start = microtime( true );
-		$config = null;
 
 		$source = ImportStreamSource::newFromFile(
 			$this->assertThatFileIsReadableOrThrowException( $this->file )
@@ -78,22 +77,31 @@ class XmlImportRunner {
 			throw new RuntimeException( 'Import returned with error(s) ' . serialize( $source->errors ) );
 		}
 
-		// WikiImporter::__construct without a Config instance was deprecated in MediaWiki 1.25.
-		if ( class_exists( '\ConfigFactory' ) ) {
-			$config = \ConfigFactory::getDefaultInstance()->makeConfig( 'main' );
-		}
+		$services = MediaWikiServices::getInstance();
 
-		$importer = new WikiImporter( $source->value, $config );
+		$importer = $services->getWikiImporterFactory()->getWikiImporter(
+			$source->value,
+			RequestContext::getMain()->getAuthority()
+		);
 		$importer->setDebug( $this->verbose );
 
-		$reporter = new ImportReporter(
-			$importer,
-			false,
-			'',
-			false
-		);
-
-		$reporter->setContext( $this->acquireRequestContext() );
+		if ( version_compare( MW_VERSION, '1.42', '>=' ) ) {
+			$reporter = new ImportReporter(
+				$importer,
+				false,
+				'',
+				false,
+				$this->acquireRequestContext()
+			);
+		} else {
+			$reporter = new ImportReporter(
+				$importer,
+				false,
+				'',
+				false
+			);
+			$reporter->setContext( $this->acquireRequestContext() );
+		}
 		$reporter->open();
 		$this->exception = false;
 
@@ -115,7 +123,6 @@ class XmlImportRunner {
 	 * @throws RuntimeException
 	 */
 	public function reportFailedImport() {
-
 		$exceptionAsString = '';
 
 		if ( $this->exception ) {
@@ -130,14 +137,13 @@ class XmlImportRunner {
 	}
 
 	/**
-	 * @return integer
+	 * @return int
 	 */
 	public function getElapsedImportTimeInSeconds() {
 		return round( $this->importTime, 7 );
 	}
 
 	protected function acquireRequestContext() {
-
 		if ( $this->requestContext === null ) {
 			$this->requestContext = new RequestContext();
 		}
@@ -146,7 +152,6 @@ class XmlImportRunner {
 	}
 
 	private function assertThatFileIsReadableOrThrowException( $file ) {
-
 		$file = str_replace( [ '\\', '/' ], DIRECTORY_SEPARATOR, $file );
 
 		if ( is_readable( $file ) ) {

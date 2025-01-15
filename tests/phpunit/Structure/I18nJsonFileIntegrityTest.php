@@ -2,25 +2,27 @@
 
 namespace SMW\Tests\Structure;
 
-use SMW\Tests\Utils\UtilityFactory;
 use SMW\Tests\PHPUnitCompat;
+use SMW\Tests\Utils\UtilityFactory;
 
 /**
  * @group semantic-mediawiki
  * @group system-test
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.1
  *
  * @author mwjames
  */
-class I18nJsonFileIntegrityTest extends \PHPUnit_Framework_TestCase {
+class I18nJsonFileIntegrityTest extends \PHPUnit\Framework\TestCase {
 
 	use PHPUnitCompat;
 
 	public function testPrettifyCanonicalMediaWikiI18NJson() {
-
-		$target = $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] . '/en.json';
+		$i18nDir = !is_array( $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] )
+				 ? $GLOBALS['wgMessagesDirs']['SemanticMediaWiki']
+				 : $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'][0];
+		$target = $i18nDir . '/en.json';
 		$contents = file_get_contents( $target );
 
 		$json = json_encode(
@@ -50,16 +52,15 @@ class I18nJsonFileIntegrityTest extends \PHPUnit_Framework_TestCase {
 	 * @dataProvider mediawikiI18nFileProvider
 	 */
 	public function testMediaWikiI18NJsonDecodeEncode( $file ) {
-
 		$jsonFileReader = UtilityFactory::getInstance()->newJsonFileReader( $file );
 
-		$this->assertInternalType(
-			'integer',
+		$this->assertIsInt(
+
 			$jsonFileReader->getModificationTime()
 		);
 
-		$this->assertInternalType(
-			'array',
+		$this->assertIsArray(
+
 			$jsonFileReader->read()
 		);
 	}
@@ -68,18 +69,17 @@ class I18nJsonFileIntegrityTest extends \PHPUnit_Framework_TestCase {
 	 * @dataProvider semanticMediaWikiI18nFileProvider
 	 */
 	public function testSemanticMediaWikiI18NJsonDecodeEncode( $file ) {
-
 		$jsonFileReader = UtilityFactory::getInstance()->newJsonFileReader( $file );
 
-		$this->assertInternalType(
-			'integer',
+		$this->assertIsInt(
+
 			$jsonFileReader->getModificationTime()
 		);
 
 		$contents = $jsonFileReader->read();
 
-		$this->assertInternalType(
-			'array',
+		$this->assertIsArray(
+
 			$contents
 		);
 
@@ -108,15 +108,22 @@ class I18nJsonFileIntegrityTest extends \PHPUnit_Framework_TestCase {
 	}
 
 	public function mediawikiI18nFileProvider() {
-		return $this->findFilesIn( $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] );
+		$i18nDir = !is_array( $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'] )
+				 ? $GLOBALS['wgMessagesDirs']['SemanticMediaWiki']
+				 : $GLOBALS['wgMessagesDirs']['SemanticMediaWiki'][0];
+
+		return $this->findFilesIn( $i18nDir );
 	}
 
 	public function semanticMediaWikiI18nFileProvider() {
-		return $this->findFilesIn( $GLOBALS['smwgExtraneousLanguageFileDir'] );
+		$i18nDir = ( !is_array( $GLOBALS['smwgExtraneousLanguageFileDir'] )
+					 ? $GLOBALS['smwgExtraneousLanguageFileDir']
+					 : $GLOBALS['smwgExtraneousLanguageFileDir'][0] );
+
+		return $this->findFilesIn( $i18nDir );
 	}
 
 	private function findFilesIn( $location ) {
-
 		$provider = [];
 
 		$bulkFileProvider = UtilityFactory::getInstance()->newBulkFileProvider( $location );

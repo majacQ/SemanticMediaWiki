@@ -1,8 +1,11 @@
 {
 	"@metadata": {
 		"authors": [
+			"Bachounda",
 			"Oldstoneage"
 		]
 	},
-	"browse": "صفّح فل ويكي"
+	"smw-categories": "تصنيفات",
+	"browse": "صفّح فل ويكي",
+	"smw-listingcontinuesabbrev": "يُتبع"
 }

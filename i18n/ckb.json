@@ -1,6 +1,7 @@
 {
 	"@metadata": {
 		"authors": [
+			"Aram",
 			"Asoxor",
 			"Sarchia",
 			"Épine",
@@ -24,6 +25,7 @@
 	"smw_type_header": "تایبەتمەندییەکانی جۆری «$1»",
 	"smw_typearticlecount": "نیشاندانی $1 {{PLURAL:$1|تایبەتمەندی}} بە بەکارھێنانی ئەم جۆرەوە.",
 	"properties": "تایبەتمەندییەکان",
+	"smw-categories": "پۆلەكان",
 	"smw_properties_docu": "تایبەتمەندییەکانی خوارەوە لەم ویکیەدا بە کار ھاتوون.",
 	"smw_propertylackspage": "ھەموو تایبەتمەندییەک دەبێت بە پەڕەیەک وەسف بکرێت!",
 	"types": "جۆرەکان",
@@ -46,5 +48,7 @@
 	"smw-ui-tooltip-title-note": "تێبینی",
 	"smw-livepreview-loading": "باركردن‌...",
 	"smw-patternedit-protection": "ئەم پەڕەیە پارێزراوە و تەنھا دەتوانرێت دەستکاریان بکرێت لەلایەن بەکارھێنەرانی <code>smw-patternedit</code> [https://www.semantic-mediawiki.org/wiki/Help:Permissions permission].",
-	"smw-jsonview-search-label": "گەڕان:"
+	"smw-jsonview-search-label": "گەڕان:",
+	"smw-listingcontinuesabbrev": "(درێژە)",
+	"smw-showingresults": "لە خوارەوە {{PLURAL:$1|'''یەک''' ئەنجام|'''$1''' ئەنجام}} نیشان دراوە، بە دەست پێ کردن لە ژمارەی '''$2'''ەوە."
 }

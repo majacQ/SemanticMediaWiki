@@ -3,8 +3,8 @@
 namespace SMW\SQLStore\EntityStore;
 
 use SMW\MediaWiki\Database;
-use SMW\Utils\HmacSerializer;
 use SMW\SQLStore\SQLStore;
+use SMW\Utils\HmacSerializer;
 
 /**
  * @private
@@ -27,7 +27,7 @@ class SequenceMapFinder {
 	private $idCacheManager;
 
 	/**
-	 * @var []
+	 * @var
 	 */
 	private $preloaded = [];
 
@@ -47,11 +47,10 @@ class SequenceMapFinder {
 	 *
 	 * @since 3.1
 	 *
-	 * @param integer $sid
-	 * @param array $map
+	 * @param int $sid
+	 * @param array|null $map
 	 */
-	public function setMap( $sid, array $map = null ) {
-
+	public function setMap( $sid, ?array $map = null ) {
 		if ( $map === null ) {
 			return;
 		}
@@ -62,18 +61,16 @@ class SequenceMapFinder {
 			$map = null;
 		}
 
-		$rows = [
-			'smw_id' => $sid,
-			'smw_seqmap' => $map
-		];
-
 		$this->connection->upsert(
 			SQLStore::ID_AUXILIARY_TABLE,
-			$rows,
 			[
-				'smw_id'
+				'smw_id' => $sid,
+				'smw_seqmap' => $map
 			],
-			$rows,
+			'smw_id',
+			[
+				'smw_seqmap' => $map
+			],
 			__METHOD__
 		);
 	}
@@ -81,12 +78,11 @@ class SequenceMapFinder {
 	/**
 	 * @since 3.1
 	 *
-	 * @param integer $sid
+	 * @param int $sid
 	 *
 	 * @return array
 	 */
 	public function findMapById( $sid ) {
-
 		$omap = [];
 		$cache = $this->idCacheManager->get( 'sequence.map' );
 
@@ -130,7 +126,6 @@ class SequenceMapFinder {
 	 * @param array $ids
 	 */
 	public function prefetchSequenceMap( array $ids ) {
-
 		sort( $ids );
 		$hash = md5( json_encode( $ids ) );
 

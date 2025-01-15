@@ -2,14 +2,14 @@
 
 namespace SMW\MediaWiki;
 
-use Title;
+use MediaWiki\MediaWikiServices;
 use SMW\DIWikiPage;
 
 /**
  * Isolate access to the LinkBatch class which allows to bulk load a list
  * of titles into the LinkCache.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.1
  *
  * @author mwjames
@@ -22,21 +22,26 @@ class LinkBatch {
 	private static $instance;
 
 	/**
-	 * @var []
+	 * @var
 	 */
 	private $log = [];
 
 	/**
-	 * @var []
+	 * @var
 	 */
 	private $batch = [];
 
 	/**
+	 * @var \LinkBatch|null
+	 */
+	private $linkBatch;
+
+	/**
 	 * @since 3.1
 	 *
-	 * @param LinkBatch|null $linkBatch
+	 * @param \LinkBatch|null $linkBatch
 	 */
-	public function __construct( \LinkBatch $linkBatch = null ) {
+	public function __construct( ?\LinkBatch $linkBatch = null ) {
 		$this->linkBatch = $linkBatch;
 	}
 
@@ -46,9 +51,8 @@ class LinkBatch {
 	 * @return LinkBatch
 	 */
 	public static function singleton() {
-
 		if ( self::$instance === null ) {
-			self::$instance = new self( new \LinkBatch() );
+			self::$instance = new self( MediaWikiServices::getInstance()->getLinkBatchFactory()->newLinkBatch() );
 		}
 
 		return self::$instance;
@@ -67,9 +71,8 @@ class LinkBatch {
 	 * @param string $caller
 	 */
 	public function setCaller( $caller ) {
-
 		if ( $this->linkBatch === null ) {
-			$this->linkBatch = new \LinkBatch();
+			$this->linkBatch = MediaWikiServices::getInstance()->getLinkBatchFactory()->newLinkBatch();
 		}
 
 		$this->linkBatch->setCaller( $caller );
@@ -92,7 +95,6 @@ class LinkBatch {
 	 * @param $dataItem
 	 */
 	public function add( $dataItem ) {
-
 		if ( !$dataItem instanceof DIWikiPage || isset( $this->log[$dataItem->getSha1()] ) ) {
 			return;
 		}
@@ -117,10 +119,9 @@ class LinkBatch {
 	 *
 	 * @param DataItem|null|false $dataItem
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function has( $dataItem ) {
-
 		if ( $dataItem instanceof DIWikiPage && isset( $this->log[$dataItem->getSha1()] ) ) {
 			return true;
 		}
@@ -132,9 +133,8 @@ class LinkBatch {
 	 * @since 3.1
 	 */
 	public function execute() {
-
 		if ( $this->linkBatch === null ) {
-			$this->linkBatch = new \LinkBatch();
+			$this->linkBatch = MediaWikiServices::getInstance()->getLinkBatchFactory()->newLinkBatch();
 		}
 
 		// Reset the list to avoid having previous members being executed again

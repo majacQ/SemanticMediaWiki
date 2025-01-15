@@ -3,7 +3,7 @@
 namespace SMW\Utils;
 
 /**
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 2.5
  *
  * @author mwjames
@@ -11,20 +11,25 @@ namespace SMW\Utils;
 class Timer {
 
 	/**
-	 * @var float|integer
+	 * @var float|int
 	 */
 	private static $start = [];
 
 	/**
-	 * @var float|integer
+	 * @var float|int
 	 */
 	private $times = [];
 
 	/**
+	 * @var string[]
+	 */
+	public array $keys;
+
+	/**
 	 * @since 3.0
 	 *
-	 * @param integer $outputType
-	 * @param integer $ts
+	 * @param int $outputType
+	 * @param int $ts
 	 *
 	 * @return string|bool
 	 */
@@ -50,7 +55,6 @@ class Timer {
 	 * @since 3.2
 	 */
 	public function stop( $name ) {
-
 		if ( isset( $this->times[$name] ) ) {
 			$this->times[$name] = microtime( true ) - $this->times[$name];
 		}
@@ -69,12 +73,11 @@ class Timer {
 	 * @since 2.5
 	 *
 	 * @param string $name
-	 * @param integer|null $round
+	 * @param int|null $round
 	 *
-	 * @return float|integer
+	 * @return float|int
 	 */
 	public static function getElapsedTime( $name, $round = null ) {
-
 		if ( !isset( self::$start[$name] ) ) {
 			return 0;
 		}
@@ -92,7 +95,7 @@ class Timer {
 	 * @since 3.0
 	 *
 	 * @param string $name
-	 * @param integer|null $round
+	 * @param int|null $round
 	 *
 	 * @return string
 	 */

@@ -35,6 +35,7 @@
 	"exportrdf": "გვერდების ექსპორტი RDF-ში",
 	"smw_exportrdf_submit": "ექსპორტი",
 	"properties": "პარამეტრები",
+	"smw-categories": "კატეგორიები",
 	"smw_purge": "განახლება",
 	"types": "ტიპები",
 	"ask": "სემანტიკური ძიება",
@@ -88,5 +89,7 @@
 	"smw-ui-tooltip-title-note": "შენიშვნა",
 	"smw-ui-tooltip-title-legend": "ლეგენდა",
 	"smw_unknowntype": "ამ თვისების ტიპი არასწორია",
-	"smw-livepreview-loading": "იტვირთება…"
+	"smw-livepreview-loading": "იტვირთება…",
+	"smw-listingcontinuesabbrev": "გაგრძ.",
+	"smw-showingresults": "ქვემოთ იხილეთ <b>$1</b>-მდე შედეგი დაწყებული #<b>$2</b>-იდან."
 }

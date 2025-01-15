@@ -9,7 +9,7 @@ use OutOfBoundsException;
  * trait is required to add `Iterator, Countable, SeekableIterator` as
  * implementation detail.
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 3.2
  *
  * @author mwjames
@@ -19,7 +19,7 @@ trait DotSeekableIteratorTrait {
 	use SeekableIteratorTrait;
 
 	/**
-	 * @var []
+	 * @var
 	 */
 	private $seekable = [];
 
@@ -29,14 +29,15 @@ trait DotSeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
-	public function seek( $position ) {
-
+	public function seek( $position ): void {
 		if ( isset( $this->seekable[$position] ) ) {
-			return $this->position = $position;
+			$this->position = $position;
+			return;
 		}
 
 		if ( isset( $this->container[$position] ) ) {
-			return $this->position = $position;
+			$this->position = $position;
+			return;
 		}
 
 		$seekable = $this->findPosition( $position );
@@ -47,7 +48,7 @@ trait DotSeekableIteratorTrait {
 
 		$this->seekable[$position] = $seekable;
 
-		return $this->position = $position;
+		$this->position = $position;
 	}
 
 	/**
@@ -56,8 +57,8 @@ trait DotSeekableIteratorTrait {
 	 *
 	 * {@inheritDoc}
 	 */
+	#[\ReturnTypeWillChange]
 	public function current() {
-
 		if ( isset( $this->seekable[$this->position] ) ) {
 			return $this->seekable[$this->position];
 		}
@@ -70,7 +71,6 @@ trait DotSeekableIteratorTrait {
 	}
 
 	private function findPosition( $position ) {
-
 		// Allow to seek using the dot notation
 		if ( !is_string( $position ) || strpos( $position, '.' ) === false ) {
 			return null;

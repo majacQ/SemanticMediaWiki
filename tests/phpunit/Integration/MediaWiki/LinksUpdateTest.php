@@ -2,23 +2,23 @@
 
 namespace SMW\Tests\Integration\MediaWiki;
 
-use SMW\ApplicationFactory;
+use MediaWiki\Deferred\LinksUpdate\LinksUpdate;
 use SMW\DIWikiPage;
-use SMW\Tests\MwDBaseUnitTestCase;
+use SMW\Services\ServicesFactory as ApplicationFactory;
+use SMW\Tests\SMWIntegrationTestCase;
 use Title;
 
 /**
  * @group semantic-mediawiki
+ * @group Database
  * @group medium
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9.1
  *
  * @author mwjames
  */
-class LinksUpdateTest extends MwDBaseUnitTestCase {
-
-	protected $destroyDatabaseTablesBeforeRun = true;
+class LinksUpdateTest extends SMWIntegrationTestCase {
 
 	private $title = null;
 	private $applicationFactory;
@@ -28,7 +28,7 @@ class LinksUpdateTest extends MwDBaseUnitTestCase {
 	private $pageCreator;
 	private $revisionGuard;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		$this->mwHooksHandler = $this->testEnvironment->getUtilityFactory()->newMwHooksHandler();
@@ -47,7 +47,7 @@ class LinksUpdateTest extends MwDBaseUnitTestCase {
 		$this->revisionGuard = ApplicationFactory::getInstance()->singleton( 'RevisionGuard' );
 	}
 
-	public function tearDown() : void {
+	public function tearDown(): void {
 		$this->applicationFactory->clear();
 		$this->mwHooksHandler->restoreListedHooks();
 
@@ -57,7 +57,6 @@ class LinksUpdateTest extends MwDBaseUnitTestCase {
 	}
 
 	public function testUpdateToSetPredefinedAnnotations() {
-
 		$this->pageCreator
 			->createPage( $this->title );
 
@@ -84,7 +83,6 @@ class LinksUpdateTest extends MwDBaseUnitTestCase {
 	 * @depends testUpdateToSetPredefinedAnnotations
 	 */
 	public function testDoUpdateUsingUserdefinedAnnotations() {
-
 		$this->pageCreator
 			->createPage( $this->title )
 			->doEdit( '[[HasFirstLinksUpdatetest::testDoUpdate]] [[HasSecondLinksUpdatetest::testDoUpdate]]' );
@@ -113,9 +111,9 @@ class LinksUpdateTest extends MwDBaseUnitTestCase {
 		);
 
 		/**
-		 * See #347 and LinksUpdateConstructed
+		 * See #347 and LinksUpdateComplete
 		 */
-		$linksUpdate = new \LinksUpdate( $this->title, new \ParserOutput() );
+		$linksUpdate = new LinksUpdate( $this->title, new \ParserOutput() );
 		$linksUpdate->doUpdate();
 
 		$this->testEnvironment->executePendingDeferredUpdates();
@@ -150,7 +148,6 @@ class LinksUpdateTest extends MwDBaseUnitTestCase {
 	 * @depends testDoUpdateUsingUserdefinedAnnotations
 	 */
 	public function testDoUpdateUsingNoAnnotations( $firstRunRevision ) {
-
 		$this->pageCreator
 			->createPage( $this->title )
 			->doEdit( 'no annotation' );
@@ -189,7 +186,6 @@ class LinksUpdateTest extends MwDBaseUnitTestCase {
 	 * @depends testDoUpdateUsingNoAnnotations
 	 */
 	public function testReparseFirstRevision( $firstRunRevision ) {
-
 		$contentParser = $this->applicationFactory->newContentParser( $this->title );
 		$contentParser->setRevision( $firstRunRevision );
 		$contentParser->parse();

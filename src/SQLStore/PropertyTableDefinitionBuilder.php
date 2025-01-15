@@ -2,7 +2,7 @@
 
 namespace SMW\SQLStore;
 
-use Hooks;
+use MediaWiki\MediaWikiServices;
 use SMW\DataTypeRegistry;
 use SMW\DIProperty;
 use SMW\PropertyRegistry;
@@ -10,7 +10,7 @@ use SMW\PropertyRegistry;
 /**
  * @private
  *
- * @license GNU GPL v2+
+ * @license GPL-2.0-or-later
  * @since 1.9
  *
  * @author mwjames
@@ -49,12 +49,11 @@ class PropertyTableDefinitionBuilder {
 	/**
 	 * @since 1.9
 	 *
-	 * @param array $diType
+	 * @param array $diTypes
 	 * @param array $specialProperties
 	 * @param array $userDefinedFixedProperties
 	 */
 	public function doBuild( $diTypes, $specialProperties, $userDefinedFixedProperties ) {
-
 		$this->addTableDefinitionForDiTypes( $diTypes );
 
 		$this->addTableDefinitionForFixedProperties(
@@ -66,8 +65,9 @@ class PropertyTableDefinitionBuilder {
 		$customFixedProperties = [];
 		$fixedPropertyTablePrefix = [];
 
+		$hookContainer = MediaWikiServices::getInstance()->getHookContainer();
 		// Allow to alter the prefix by an extension
-		Hooks::run( 'SMW::SQLStore::AddCustomFixedPropertyTables', [ &$customFixedProperties, &$fixedPropertyTablePrefix ] );
+		$hookContainer->run( 'SMW::SQLStore::AddCustomFixedPropertyTables', [ &$customFixedProperties, &$fixedPropertyTablePrefix ] );
 
 		$this->addTableDefinitionForFixedProperties(
 			$customFixedProperties,
@@ -81,7 +81,7 @@ class PropertyTableDefinitionBuilder {
 			$userDefinedFixedProperties
 		);
 
-		Hooks::run( 'SMW::SQLStore::updatePropertyTableDefinitions', [ &$this->propertyTables ] );
+		$hookContainer->run( 'SMW::SQLStore::updatePropertyTableDefinitions', [ &$this->propertyTables ] );
 
 		$this->createFixedPropertyTableIdIndex();
 	}
@@ -216,7 +216,6 @@ class PropertyTableDefinitionBuilder {
 	 * @param array $fixedProperties
 	 */
 	private function addTableDefinitionForUserDefinedFixedProperties( array $fixedProperties ) {
-
 		$this->propertyTypeFinder->setTypeTableName(
 			$this->makeTableName( '_TYPE' )
 		);
@@ -239,7 +238,6 @@ class PropertyTableDefinitionBuilder {
 	}
 
 	private function createFixedPropertyTableIdIndex() {
-
 		foreach ( $this->propertyTables as $tid => $propTable ) {
 			if ( $propTable->isFixedPropertyTable() ) {
 				$this->fixedPropertyTableIds[$propTable->getFixedProperty()] = $tid;
